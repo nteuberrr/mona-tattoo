@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { BookingProvider, useBooking } from "./BookingContext";
+import { BookingProvider, useBooking, type PaymentInfo } from "./BookingContext";
 import { Stepper } from "./Stepper";
 import { Step1Personal } from "./Step1Personal";
 import { Step2Tattoos } from "./Step2Tattoos";
@@ -34,14 +34,16 @@ function ActiveStep() {
 export function BookingClient({
   pricing,
   hours,
+  payment,
   source
 }: {
   pricing: PricingMatrices;
   hours: HoursMatrices;
+  payment: PaymentInfo;
   source: "sheets" | "fallback";
 }) {
   return (
-    <BookingProvider pricing={pricing} hours={hours} source={source}>
+    <BookingProvider pricing={pricing} hours={hours} payment={payment} source={source}>
       <Stepper />
       <section className="container mx-auto py-12 md:py-20 min-h-[60vh]">
         <ActiveStep />

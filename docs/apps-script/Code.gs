@@ -62,6 +62,8 @@ function doPost(e) {
         return savePricing(body.payload || {});
       case "saveHours":
         return saveHours(body.payload || {});
+      case "saveConfig":
+        return saveConfig(body.payload || {});
       default:
         return json({ error: "Unknown action: " + body.action }, 400);
     }
@@ -329,6 +331,30 @@ function writeMatrix(sheetName, data) {
     return [h].concat(padded);
   });
   s.getRange(2, 1, rows.length, header.length).setValues(rows);
+}
+
+/**
+ * payload: objeto plano { clave1: valor1, clave2: valor2, ... }
+ * Actualiza filas existentes en Configuracion o las crea. No borra otras.
+ */
+function saveConfig(payload) {
+  const s = sheet("Configuracion");
+  const data = s.getDataRange().getValues();
+  const headers = data[0]; // ["clave", "valor", "descripcion"]
+  const existing = {};
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0]) existing[String(data[i][0])] = i + 1; // row number 1-indexed
+  }
+
+  Object.keys(payload).forEach(function (key) {
+    const val = payload[key];
+    if (existing[key]) {
+      s.getRange(existing[key], 2).setValue(val);
+    } else {
+      s.appendRow([key, val, ""]);
+    }
+  });
+  return json({ ok: true });
 }
 
 function readMatrix(sheetName) {

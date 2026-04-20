@@ -8,6 +8,17 @@ import type {
 } from "@/lib/validations/booking";
 import type { HoursMatrices, PricingMatrices } from "@/lib/pricing/types";
 
+export type PaymentInfo = {
+  holderName: string;
+  rut: string;
+  bank: string;
+  accountType: string;
+  accountNumber: string;
+  contactEmail: string;
+  depositMode: "FIXED" | "PERCENTAGE";
+  depositValue: number;
+};
+
 export type BookingStep = 1 | 2 | 3 | 4 | 5;
 
 type State = {
@@ -55,6 +66,7 @@ type Ctx = State & {
   dispatch: React.Dispatch<Action>;
   pricing: PricingMatrices;
   hours: HoursMatrices;
+  payment: PaymentInfo;
   source: "sheets" | "fallback";
 };
 
@@ -64,17 +76,19 @@ export function BookingProvider({
   children,
   pricing,
   hours,
+  payment,
   source
 }: {
   children: React.ReactNode;
   pricing: PricingMatrices;
   hours: HoursMatrices;
+  payment: PaymentInfo;
   source: "sheets" | "fallback";
 }) {
   const [state, dispatch] = React.useReducer(reducer, initialState);
   return (
     <BookingContext.Provider
-      value={{ ...state, dispatch, pricing, hours, source }}
+      value={{ ...state, dispatch, pricing, hours, payment, source }}
     >
       {children}
     </BookingContext.Provider>

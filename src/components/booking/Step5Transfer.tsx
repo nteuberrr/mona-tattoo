@@ -11,26 +11,16 @@ import { totals, calculateDeposit } from "@/lib/pricing/calculator";
 import { estimate } from "@/lib/pricing/calculator";
 import { formatCLP } from "@/lib/utils";
 
-// En Fase 2 estos datos vienen del modelo PaymentSettings
-const PAYMENT_INFO = {
-  holderName: "Mona Tatt SpA",
-  rut: "77.123.456-7",
-  bank: "Banco de Chile",
-  accountType: "Cuenta Corriente",
-  accountNumber: "0012345678",
-  contactEmail: "agenda.monatatt@gmail.com"
-};
-
 export function Step5Transfer() {
   const router = useRouter();
-  const { personal, tattoos, schedule, dispatch, pricing, hours } = useBooking();
+  const { personal, tattoos, schedule, dispatch, pricing, hours, payment } = useBooking();
   const [reference, setReference] = React.useState("");
   const [receipt, setReceipt] = React.useState<File | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [copied, setCopied] = React.useState<string | null>(null);
 
   const { price: tTotal } = totals(tattoos, { pricing, hours });
-  const deposit = calculateDeposit(tTotal, "PERCENTAGE", 30);
+  const deposit = calculateDeposit(tTotal, payment.depositMode, payment.depositValue);
 
   const copy = (v: string) => {
     navigator.clipboard.writeText(v);
@@ -87,14 +77,21 @@ export function Step5Transfer() {
           <span className="font-display text-4xl">{formatCLP(deposit)}</span>
         </div>
 
-        <div className="divide-y divide-line">
-          <CopyRow label="Titular" value={PAYMENT_INFO.holderName} onCopy={copy} copied={copied === PAYMENT_INFO.holderName} />
-          <CopyRow label="RUT" value={PAYMENT_INFO.rut} onCopy={copy} copied={copied === PAYMENT_INFO.rut} />
-          <CopyRow label="Banco" value={PAYMENT_INFO.bank} onCopy={copy} copied={copied === PAYMENT_INFO.bank} />
-          <CopyRow label="Tipo de cuenta" value={PAYMENT_INFO.accountType} onCopy={copy} copied={copied === PAYMENT_INFO.accountType} />
-          <CopyRow label="Número de cuenta" value={PAYMENT_INFO.accountNumber} onCopy={copy} copied={copied === PAYMENT_INFO.accountNumber} />
-          <CopyRow label="Email" value={PAYMENT_INFO.contactEmail} onCopy={copy} copied={copied === PAYMENT_INFO.contactEmail} />
-        </div>
+        {!payment.holderName ? (
+          <p className="text-sm text-muted italic">
+            Aún no hay datos de transferencia configurados. El estudio debe
+            completarlos desde el panel admin.
+          </p>
+        ) : (
+          <div className="divide-y divide-line">
+            <CopyRow label="Titular" value={payment.holderName} onCopy={copy} copied={copied === payment.holderName} />
+            <CopyRow label="RUT" value={payment.rut} onCopy={copy} copied={copied === payment.rut} />
+            <CopyRow label="Banco" value={payment.bank} onCopy={copy} copied={copied === payment.bank} />
+            <CopyRow label="Tipo de cuenta" value={payment.accountType} onCopy={copy} copied={copied === payment.accountType} />
+            <CopyRow label="Número de cuenta" value={payment.accountNumber} onCopy={copy} copied={copied === payment.accountNumber} />
+            <CopyRow label="Email" value={payment.contactEmail} onCopy={copy} copied={copied === payment.contactEmail} />
+          </div>
+        )}
       </section>
 
       <section className="space-y-5">

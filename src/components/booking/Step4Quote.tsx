@@ -9,10 +9,10 @@ import { estimate, totals, calculateDeposit } from "@/lib/pricing/calculator";
 import { formatCLP, formatDateLong } from "@/lib/utils";
 
 export function Step4Quote() {
-  const { personal, tattoos, schedule, acceptedTerms, dispatch, pricing, hours } = useBooking();
+  const { personal, tattoos, schedule, acceptedTerms, dispatch, pricing, hours, payment } = useBooking();
   const matrices = { pricing, hours };
   const { price: tTotal, hours: hTotal, anySpecialSize } = totals(tattoos, matrices);
-  const deposit = calculateDeposit(tTotal, "PERCENTAGE", 30);
+  const deposit = calculateDeposit(tTotal, payment.depositMode, payment.depositValue);
 
   if (!personal || !schedule) return null;
 
@@ -98,7 +98,12 @@ export function Step4Quote() {
           <span className="font-display text-4xl">{formatCLP(tTotal)}</span>
         </div>
         <div className="flex items-baseline justify-between gap-6 mt-3 pt-3 border-t border-bg/20">
-          <span className="text-bg/70 text-sm">Abono para reservar (30% aprox.)</span>
+          <span className="text-bg/70 text-sm">
+            Abono para reservar{" "}
+            {payment.depositMode === "PERCENTAGE"
+              ? `(${payment.depositValue}% del total)`
+              : "(monto fijo)"}
+          </span>
           <span className="font-display text-2xl">{formatCLP(deposit)}</span>
         </div>
       </section>

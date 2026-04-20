@@ -12,7 +12,8 @@ export type SheetsAction =
   | "getConfig"
   | "getPricing"
   | "savePricing"
-  | "saveHours";
+  | "saveHours"
+  | "saveConfig";
 
 export type SheetsResponse<T = unknown> =
   | { ok: true; data: T }
