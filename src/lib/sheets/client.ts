@@ -10,7 +10,9 @@ export type SheetsAction =
   | "logEmail"
   | "getBookings"
   | "getConfig"
-  | "getPricing";
+  | "getPricing"
+  | "savePricing"
+  | "saveHours";
 
 export type SheetsResponse<T = unknown> =
   | { ok: true; data: T }

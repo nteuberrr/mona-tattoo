@@ -58,6 +58,10 @@ function doPost(e) {
         return getPricing();
       case "logEmail":
         return logEmail(body.payload || {});
+      case "savePricing":
+        return savePricing(body.payload || {});
+      case "saveHours":
+        return saveHours(body.payload || {});
       default:
         return json({ error: "Unknown action: " + body.action }, 400);
     }
@@ -284,6 +288,47 @@ function getPricing() {
       realista: readMatrix("Horas_Realistas")
     }
   });
+}
+
+/**
+ * payload: { lineal?: { widths, heights, matrix }, realista?: { widths, heights, matrix } }
+ * matrix es [[v,v,...], ...] donde matrix[i][j] corresponde a heights[i] × widths[j]
+ * Números o null/vacío. Sobrescribe completamente la hoja.
+ */
+function savePricing(payload) {
+  if (payload.lineal) writeMatrix("Precios_Lineales", payload.lineal);
+  if (payload.realista) writeMatrix("Precios_Realistas", payload.realista);
+  return json({ ok: true });
+}
+
+function saveHours(payload) {
+  if (payload.lineal) writeMatrix("Horas_Lineales", payload.lineal);
+  if (payload.realista) writeMatrix("Horas_Realistas", payload.realista);
+  return json({ ok: true });
+}
+
+function writeMatrix(sheetName, data) {
+  const s = sheet(sheetName);
+  s.clearContents();
+  const widths = data.widths || [];
+  const heights = data.heights || [];
+  const matrix = data.matrix || [];
+
+  const header = ["Alto \\ Ancho"].concat(widths);
+  s.getRange(1, 1, 1, header.length).setValues([header]);
+
+  if (heights.length === 0) return;
+
+  const rows = heights.map(function (h, i) {
+    const row = matrix[i] || [];
+    const padded = [];
+    for (let j = 0; j < widths.length; j++) {
+      const v = row[j];
+      padded.push(v === null || v === undefined || v === "" ? "" : v);
+    }
+    return [h].concat(padded);
+  });
+  s.getRange(2, 1, rows.length, header.length).setValues(rows);
 }
 
 function readMatrix(sheetName) {

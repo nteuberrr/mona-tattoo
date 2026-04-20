@@ -33,9 +33,12 @@ export default function MatrizHorasPage() {
   const [style, setStyle] = React.useState<Style>("lineal");
   const [matrix, setMatrix] = React.useState<Matrix>(initMatrix);
   const [saving, setSaving] = React.useState(false);
+  const [saved, setSaved] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
   const setCell = (r: number, c: number, raw: string) => {
     const n = raw === "" ? null : Number(raw.replace(",", "."));
+    setSaved(false);
     setMatrix((prev) => ({
       ...prev,
       [style]: prev[style].map((row, rr) =>
@@ -46,9 +49,27 @@ export default function MatrizHorasPage() {
 
   const save = async () => {
     setSaving(true);
-    // TODO Fase 2: POST /api/admin/matriz-horas → Prisma HourMatrix
-    await new Promise((r) => setTimeout(r, 600));
-    setSaving(false);
+    setError(null);
+    try {
+      const payload = {
+        lineal: { widths: SIZES, heights: SIZES, matrix: matrix.lineal },
+        realista: { widths: SIZES, heights: SIZES, matrix: matrix.realista }
+      };
+      const res = await fetch("/api/admin/hours", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+      setSaved(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error al guardar");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const active = matrix[style];
@@ -62,7 +83,7 @@ export default function MatrizHorasPage() {
           </Link>
           <h1 className="display-md mt-1">Matriz de horas</h1>
         </div>
-        <Badge variant="outline">Fase 1.5 · sin persistencia</Badge>
+        <Badge variant="outline">Guarda en Google Sheets</Badge>
       </div>
 
       <p className="text-ink-soft max-w-2xl">
@@ -124,9 +145,18 @@ export default function MatrizHorasPage() {
         </table>
       </div>
 
-      <div className="flex justify-end">
+      {error && (
+        <div className="bg-danger/10 text-danger border border-danger/40 p-3 text-sm">
+          Error al guardar: {error}
+        </div>
+      )}
+
+      <div className="flex items-center justify-end gap-3">
+        {saved && (
+          <span className="text-xs text-[#3E5E3E]">✓ Guardado en Google Sheets</span>
+        )}
         <Button onClick={save} disabled={saving}>
-          {saving ? "Guardando…" : "Guardar matriz"}
+          {saving ? "Guardando…" : saved ? "Guardar de nuevo" : "Guardar matriz"}
         </Button>
       </div>
     </div>
