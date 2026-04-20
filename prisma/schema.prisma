@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+}
+
+model Client {
+  id        String    @id @default(cuid())
+  name      String
+  email     String
+  age       Int
+  phone     String
+  gender    String
+  bookings  Booking[]
+  createdAt DateTime  @default(now())
+
+  @@index([email])
+}
+
+model Booking {
+  id                 String        @id @default(cuid())
+  client             Client        @relation(fields: [clientId], references: [id])
+  clientId           String
+  date               DateTime
+  startTime          String
+  endTime            String
+  totalHours         Float
+  totalPrice         Float
+  depositAmount      Float?
+  status             BookingStatus @default(QUOTED)
+  depositPaid        Boolean       @default(false)
+  transferReceiptUrl String?
+  transferReference  String?
+  clientNotifiedAt   DateTime?
+  quotedAt           DateTime      @default(now())
+  pendingSince       DateTime?
+  confirmedAt        DateTime?
+  confirmedByAdmin   Boolean       @default(false)
+  rejectionReason    String?
+  slotHoldUntil      DateTime?
+  tattoos            Tattoo[]
+  notes              String?
+  createdAt          DateTime      @default(now())
+
+  @@index([status])
+  @@index([date])
+}
+
+enum BookingStatus {
+  QUOTED
+  PENDING_CONFIRMATION
+  CONFIRMED
+  REJECTED
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}
+
+model Tattoo {
+  id              String   @id @default(cuid())
+  booking         Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  bookingId       String
+  description     String
+  style           String
+  widthCm         Float
+  heightCm        Float
+  isSpecialSize   Boolean  @default(false)
+  bodyPart        String
+  color           String
+  price           Float
+  referenceImages String[]
+}
+
+model HourMatrix {
+  id        String @id @default(cuid())
+  widthMin  Float
+  widthMax  Float
+  heightMin Float
+  heightMax Float
+  hours     Float
+}
+
+model PriceTable {
+  id         String   @id @default(cuid())
+  widthCm    Float
+  heightCm   Float
+  color      String
+  price      Float
+  uploadedAt DateTime @default(now())
+
+  @@index([widthCm, heightCm, color])
+}
+
+model ScheduleBlock {
+  id        String   @id @default(cuid())
+  date      DateTime
+  startTime String?
+  endTime   String?
+  reason    String?
+  allDay    Boolean  @default(false)
+}
+
+model SpecialRequest {
+  id          String   @id @default(cuid())
+  type        String   // "size" | "schedule"
+  clientName  String
+  clientEmail String
+  payload     Json
+  resolved    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model PaymentSettings {
+  id             String   @id @default(cuid())
+  holderName     String
+  rut            String
+  bank           String
+  accountType    String
+  accountNumber  String
+  contactEmail   String   @default("agenda.monatatt@gmail.com")
+  depositMode    String   @default("PERCENTAGE") // "FIXED" | "PERCENTAGE"
+  depositAmount  Float?
+  depositPercent Float?   @default(30)
+  updatedAt      DateTime @updatedAt
+}

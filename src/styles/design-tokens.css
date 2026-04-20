@@ -1,0 +1,55 @@
+/*
+ * Mona Tatt — Design Tokens
+ * Única fuente de verdad para color, tipografía, espaciado y movimiento.
+ * Ningún componente debe usar valores hardcoded por fuera de este archivo.
+ */
+
+:root {
+  /* Paleta base */
+  --color-bg: #F7F4EF;
+  --color-surface: #FFFFFF;
+  --color-ink: #141414;
+  --color-ink-soft: #4A4A4A;
+  --color-muted: #8A8680;
+  --color-line: #E6E2DB;
+  --color-accent: #1A1A1A;
+  --color-danger: #A23A2C;
+  --color-warning: #B8863B;
+  --color-success: #3E5E3E;
+
+  /* Tipografía (las variables next/font se inyectan en layout.tsx) */
+  --font-display: var(--font-fraunces), "Cormorant Garamond", Georgia, serif;
+  --font-body: var(--font-inter), system-ui, -apple-system, sans-serif;
+
+  /* Espaciado */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 1rem;
+  --space-4: 1.5rem;
+  --space-6: 2.5rem;
+  --space-8: 4rem;
+  --space-12: 6rem;
+  --space-16: 8rem;
+
+  /* Radios */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+
+  /* Transiciones */
+  --transition-base: 200ms ease-out;
+  --transition-slow: 400ms ease-out;
+
+  /* Altura de controles */
+  --control-height: 48px;
+}
+
+.dark {
+  --color-bg: #141414;
+  --color-surface: #1C1C1C;
+  --color-ink: #F7F4EF;
+  --color-ink-soft: #C9C5BE;
+  --color-muted: #8A8680;
+  --color-line: #2A2A2A;
+  --color-accent: #F7F4EF;
+}
