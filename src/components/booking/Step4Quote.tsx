@@ -79,14 +79,20 @@ export function Step4Quote() {
                     {formatHours(item.hours)}
                   </div>
                   {item.discount > 0 ? (
-                    <>
-                      <div className="text-xs text-muted line-through">
-                        {formatCLP(item.priceBeforeDiscount)}
+                    <div className="mt-1 text-xs space-y-0.5">
+                      <div className="flex items-baseline justify-end gap-2 text-ink-soft">
+                        <span>Precio base</span>
+                        <span className="font-mono">{formatCLP(item.priceBeforeDiscount)}</span>
                       </div>
-                      <div className="font-display text-2xl">
-                        {formatCLP(item.price)}
+                      <div className="flex items-baseline justify-end gap-2 text-[#3E5E3E]">
+                        <span>Descuento ({discount.multiTattooPct}%)</span>
+                        <span className="font-mono">−{formatCLP(item.discount)}</span>
                       </div>
-                    </>
+                      <div className="flex items-baseline justify-end gap-2 pt-1 mt-1 border-t border-line">
+                        <span className="uppercase tracking-editorial text-muted">Total</span>
+                        <span className="font-display text-2xl">{formatCLP(item.price)}</span>
+                      </div>
+                    </div>
                   ) : (
                     <div className="font-display text-2xl mt-1">
                       {formatCLP(item.price)}
