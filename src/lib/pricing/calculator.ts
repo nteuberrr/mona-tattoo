@@ -11,6 +11,16 @@ import type {
   TattooEstimate
 } from "./types";
 
+export type DiscountConfig = {
+  multiTattooActive: boolean;
+  multiTattooPct: number; // ej. 10 = 10%
+};
+
+export const DEFAULT_DISCOUNT: DiscountConfig = {
+  multiTattooActive: true,
+  multiTattooPct: 10
+};
+
 function lookupExact(matrix: Matrix, widthCm: number, heightCm: number): number | null {
   const w = Math.round(widthCm);
   const h = Math.round(heightCm);
@@ -65,20 +75,53 @@ export function estimate(
   };
 }
 
+export type TattooItemEstimate = TattooEstimate & {
+  priceBeforeDiscount: number;
+  discount: number;
+};
+
 export function totals(
   tattoos: Array<Pick<TattooData, "widthCm" | "heightCm" | "style">>,
-  matrices: { pricing: PricingMatrices; hours: HoursMatrices } | null
-): { price: number; hours: number; anySpecialSize: boolean } {
-  let price = 0;
-  let hours = 0;
-  let anySpecialSize = false;
-  for (const t of tattoos) {
+  matrices: { pricing: PricingMatrices; hours: HoursMatrices } | null,
+  discount: DiscountConfig = DEFAULT_DISCOUNT
+): {
+  price: number;
+  hours: number;
+  anySpecialSize: boolean;
+  discountTotal: number;
+  items: TattooItemEstimate[];
+} {
+  // Estimar cada tatuaje
+  const estimates: TattooItemEstimate[] = tattoos.map((t) => {
     const e = estimate(t, matrices);
-    price += e.price;
-    hours += e.hours;
-    if (!e.fromMatrix) anySpecialSize = true;
+    return {
+      ...e,
+      priceBeforeDiscount: e.price,
+      discount: 0
+    };
+  });
+
+  // Aplicar descuento multi-tatuaje: del 2° en adelante, pero sobre los de MENOR precio
+  // (mantenemos el más caro a precio lleno)
+  if (discount.multiTattooActive && discount.multiTattooPct > 0 && estimates.length > 1) {
+    // Ordenar índices por precio descendente (el de mayor precio queda primero = sin descuento)
+    const order = estimates
+      .map((e, i) => ({ i, price: e.priceBeforeDiscount }))
+      .sort((a, b) => b.price - a.price);
+    for (let k = 1; k < order.length; k++) {
+      const idx = order[k].i;
+      const d = Math.round((estimates[idx].priceBeforeDiscount * discount.multiTattooPct) / 100);
+      estimates[idx].discount = d;
+      estimates[idx].price = estimates[idx].priceBeforeDiscount - d;
+    }
   }
-  return { price, hours, anySpecialSize };
+
+  const price = estimates.reduce((acc, e) => acc + e.price, 0);
+  const hours = estimates.reduce((acc, e) => acc + e.hours, 0);
+  const discountTotal = estimates.reduce((acc, e) => acc + e.discount, 0);
+  const anySpecialSize = estimates.some((e) => !e.fromMatrix);
+
+  return { price, hours, anySpecialSize, discountTotal, items: estimates };
 }
 
 export function calculateDeposit(

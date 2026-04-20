@@ -88,12 +88,22 @@ const toDateString = (v: unknown): string => {
 const toTimeString = (v: unknown): string => {
   if (!v) return "";
   if (v instanceof Date) {
-    const h = String(v.getHours()).padStart(2, "0");
-    const m = String(v.getMinutes()).padStart(2, "0");
+    const h = String(v.getUTCHours()).padStart(2, "0");
+    const m = String(v.getUTCMinutes()).padStart(2, "0");
     return `${h}:${m}`;
   }
   const s = String(v).trim();
-  // si es un float (hora como fracción de día), convertir
+  // Google Sheets serializa tiempos como ISO desde epoch 1899-12-30.
+  // Ej: "1899-12-30T11:00:00.000Z" → "11:00"
+  if (s.includes("T") && s.includes(":")) {
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) {
+      const h = String(d.getUTCHours()).padStart(2, "0");
+      const m = String(d.getUTCMinutes()).padStart(2, "0");
+      return `${h}:${m}`;
+    }
+  }
+  // Fracción de día (Excel style, 0.5 = 12:00)
   if (/^\d*\.\d+$/.test(s)) {
     const frac = Number(s);
     const totalMin = Math.round(frac * 24 * 60);
@@ -101,6 +111,9 @@ const toTimeString = (v: unknown): string => {
     const m = String(totalMin % 60).padStart(2, "0");
     return `${h}:${m}`;
   }
+  // Ya en formato "HH:mm"
+  const m = s.match(/^(\d{1,2}):(\d{2})/);
+  if (m) return `${m[1].padStart(2, "0")}:${m[2]}`;
   return s;
 };
 

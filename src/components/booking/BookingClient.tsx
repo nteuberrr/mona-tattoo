@@ -9,6 +9,7 @@ import { Step3Schedule } from "./Step3Schedule";
 import { Step4Quote } from "./Step4Quote";
 import { Step5Transfer } from "./Step5Transfer";
 import type { HoursMatrices, PricingMatrices } from "@/lib/pricing/types";
+import type { DiscountConfig } from "@/lib/pricing/calculator";
 
 function ActiveStep() {
   const { step } = useBooking();
@@ -35,15 +36,23 @@ export function BookingClient({
   pricing,
   hours,
   payment,
+  discount,
   source
 }: {
   pricing: PricingMatrices;
   hours: HoursMatrices;
   payment: PaymentInfo;
+  discount: DiscountConfig;
   source: "sheets" | "fallback";
 }) {
   return (
-    <BookingProvider pricing={pricing} hours={hours} payment={payment} source={source}>
+    <BookingProvider
+      pricing={pricing}
+      hours={hours}
+      payment={payment}
+      discount={discount}
+      source={source}
+    >
       <Stepper />
       <section className="container mx-auto py-12 md:py-20 min-h-[60vh]">
         <ActiveStep />

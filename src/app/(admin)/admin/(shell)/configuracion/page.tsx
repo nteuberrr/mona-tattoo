@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Table2, Clock, CalendarX, CreditCard } from "lucide-react";
+import { ArrowRight, Table2, Clock, CalendarX, CreditCard, Percent, Users } from "lucide-react";
 
 const SECTIONS = [
   {
@@ -31,6 +31,18 @@ const SECTIONS = [
     icon: CreditCard,
     title: "Datos de pago",
     body: "Cuenta bancaria que ven los clientes en el paso 5, más modo/valor del abono."
+  },
+  {
+    href: "/admin/configuracion/descuentos",
+    icon: Percent,
+    title: "Descuentos",
+    body: "Descuento multi-tatuaje: % aplicado del 2° en adelante (sobre los de menor precio)."
+  },
+  {
+    href: "/admin/configuracion/usuarios",
+    icon: Users,
+    title: "Usuarios",
+    body: "Agrega, edita o elimina usuarios con acceso al panel. Ve las credenciales cuando las necesites."
   }
 ];
 

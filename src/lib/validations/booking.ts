@@ -58,7 +58,11 @@ export type TattooData = z.infer<typeof tattooSchema>;
 
 export const scheduleSchema = z.object({
   date: z.string().min(1, "Selecciona una fecha"),
-  startTime: z.string().min(1, "Selecciona una hora")
+  startTime: z.string().min(1, "Selecciona una hora"),
+  /** Si la sesión requiere más de 3h, los bloques adicionales se listan acá. */
+  additionalBlocks: z
+    .array(z.object({ date: z.string(), startTime: z.string() }))
+    .optional()
 });
 export type ScheduleData = z.infer<typeof scheduleSchema>;
 

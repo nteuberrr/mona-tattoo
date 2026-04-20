@@ -70,6 +70,16 @@ function doPost(e) {
         return createBlock(body.payload || {});
       case "deleteBlock":
         return deleteBlock(body.payload || {});
+      case "getUsers":
+        return getUsers();
+      case "createUser":
+        return createUser(body.payload || {});
+      case "updateUser":
+        return updateUser(body.payload || {});
+      case "deleteUser":
+        return deleteUser(body.payload || {});
+      case "validateUser":
+        return validateUser(body.payload || {});
       default:
         return json({ error: "Unknown action: " + body.action }, 400);
     }
@@ -95,6 +105,17 @@ function json(obj) {
 function sheet(name) {
   const s = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
   if (!s) throw new Error("Hoja no encontrada: " + name);
+  return s;
+}
+
+function sheetOrCreate(name, headers) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let s = ss.getSheetByName(name);
+  if (!s) {
+    s = ss.insertSheet(name);
+    s.getRange(1, 1, 1, headers.length).setValues([headers]);
+    s.setFrozenRows(1);
+  }
   return s;
 }
 
@@ -179,6 +200,128 @@ function createBooking(payload) {
   });
 
   return json({ id: id, status: initialStatus });
+}
+
+// ==============================================================
+//  Usuarios admin
+// ==============================================================
+
+const USER_HEADERS = [
+  "id",
+  "nombre",
+  "email",
+  "password",
+  "rol",
+  "activo",
+  "created_at",
+  "last_login"
+];
+
+function usersSheet() {
+  return sheetOrCreate("Usuarios", USER_HEADERS);
+}
+
+function getUsers() {
+  const s = usersSheet();
+  const data = s.getDataRange().getValues();
+  if (data.length <= 1) return json({ users: [] });
+  const users = data.slice(1)
+    .filter(function (row) { return row[0]; })
+    .map(function (row) {
+      const u = rowToObject(USER_HEADERS, row);
+      u.activo = String(u.activo).toUpperCase() === "TRUE";
+      return u;
+    });
+  return json({ users: users });
+}
+
+/**
+ * payload: { nombre, email, password, rol?, activo? }
+ */
+function createUser(payload) {
+  const s = usersSheet();
+  // Evitar duplicados por email
+  const data = s.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][2] || "").toLowerCase() === String(payload.email || "").toLowerCase()) {
+      return json({ error: "Ya existe un usuario con ese email" }, 409);
+    }
+  }
+  const id = genId("usr");
+  s.appendRow([
+    id,
+    payload.nombre || "",
+    payload.email || "",
+    payload.password || "",
+    payload.rol || "admin",
+    payload.activo === false ? "FALSE" : "TRUE",
+    now(),
+    ""
+  ]);
+  return json({ id: id });
+}
+
+/**
+ * payload: { id, nombre?, email?, password?, rol?, activo? }
+ * Solo actualiza los campos presentes en el payload.
+ */
+function updateUser(payload) {
+  const s = usersSheet();
+  const data = s.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === payload.id) {
+      const row = i + 1;
+      if (payload.nombre !== undefined) s.getRange(row, 2).setValue(payload.nombre);
+      if (payload.email !== undefined) s.getRange(row, 3).setValue(payload.email);
+      if (payload.password !== undefined && payload.password !== "") {
+        s.getRange(row, 4).setValue(payload.password);
+      }
+      if (payload.rol !== undefined) s.getRange(row, 5).setValue(payload.rol);
+      if (payload.activo !== undefined) s.getRange(row, 6).setValue(payload.activo ? "TRUE" : "FALSE");
+      return json({ ok: true });
+    }
+  }
+  return json({ error: "Usuario no encontrado" }, 404);
+}
+
+function deleteUser(payload) {
+  const s = usersSheet();
+  const data = s.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === payload.id) {
+      s.deleteRow(i + 1);
+      return json({ ok: true });
+    }
+  }
+  return json({ error: "Usuario no encontrado" }, 404);
+}
+
+/**
+ * payload: { email, password }
+ * Valida credenciales contra Usuarios y, si hay match, actualiza last_login.
+ * Retorna el usuario sin el password (por seguridad).
+ */
+function validateUser(payload) {
+  const s = usersSheet();
+  const data = s.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const email = String(row[2] || "").toLowerCase();
+    const password = String(row[3] || "");
+    const activo = String(row[5] || "").toUpperCase() === "TRUE";
+    if (email === String(payload.email || "").toLowerCase() && password === String(payload.password || "") && activo) {
+      s.getRange(i + 1, 8).setValue(now());
+      return json({
+        user: {
+          id: row[0],
+          nombre: row[1],
+          email: row[2],
+          rol: row[4]
+        }
+      });
+    }
+  }
+  return json({ error: "Credenciales inválidas", noMatch: true }, 401);
 }
 
 // ==============================================================

@@ -1,14 +1,12 @@
 import Link from "next/link";
 import { addDays, endOfMonth, format, parseISO, startOfMonth, startOfWeek } from "date-fns";
+import { es } from "date-fns/locale";
 import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  statusColor,
-  type Booking
-} from "@/lib/mock-bookings";
+import { statusColor, type Booking } from "@/lib/mock-bookings";
 import { getAllBookings } from "@/lib/bookings";
-import { formatCLP, cn, formatDateLong } from "@/lib/utils";
+import { formatCLP, cn, formatDateShort, formatHours } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -17,48 +15,64 @@ export default async function DashboardPage() {
 
   const today = new Date();
   const weekStart = startOfWeek(today, { weekStartsOn: 1 });
-  const weekEnd = addDays(weekStart, 5);
+  const weekEnd = addDays(weekStart, 7);
   const monthStart = startOfMonth(today);
   const monthEnd = endOfMonth(today);
 
   const pending = bookings.filter((b) => b.status === "PENDING_CONFIRMATION");
 
-  const reservasSemana = bookings.filter((b) => {
+  const thisMonth = bookings.filter((b) => {
     if (!b.date) return false;
     const d = parseISO(b.date);
-    return d >= weekStart && d < weekEnd && b.status === "CONFIRMED";
+    return d >= monthStart && d <= monthEnd;
   });
+  const monthRealized = thisMonth.filter(
+    (b) => b.status === "CONFIRMED" || b.status === "COMPLETED"
+  );
+  const monthCompleted = thisMonth.filter((b) => b.status === "COMPLETED");
 
-  const ingresosMes = bookings
-    .filter((b) => {
-      if (!b.date) return false;
-      const d = parseISO(b.date);
-      return d >= monthStart && d <= monthEnd && (b.status === "CONFIRMED" || b.status === "COMPLETED");
-    })
-    .reduce((acc, b) => acc + (b.totalPrice || 0), 0);
+  const monthIncome = monthRealized.reduce((acc, b) => acc + (b.totalPrice || 0), 0);
+  const monthHoursDone = monthCompleted.reduce((acc, b) => acc + (b.totalHours || 0), 0);
 
   const proximas = bookings
     .filter((b) => b.status === "CONFIRMED" && b.date && parseISO(b.date) >= today)
     .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))
     .slice(0, 5);
 
-  const proximaCita = proximas[0];
+  // Agregaciones globales (lifetime)
+  const allRealized = bookings.filter(
+    (b) => b.status === "CONFIRMED" || b.status === "COMPLETED"
+  );
+  const allTattoos = allRealized.flatMap((b) => b.tattoos);
+  const uniqueClients = new Set(
+    allRealized.map((b) => (b.client.email || b.client.name || "").toLowerCase())
+  ).size;
+
+  const avgPrice = allTattoos.length
+    ? Math.round(allTattoos.reduce((a, t) => a + (t.price || 0), 0) / allTattoos.length)
+    : 0;
+  const avgSize = allTattoos.length
+    ? allTattoos.reduce((a, t) => a + (t.widthCm || 0) * (t.heightCm || 0), 0) / allTattoos.length
+    : 0;
+
+  const byBody = aggregate(allTattoos, (t) => t.bodyPart);
+  const byStyle = aggregate(allTattoos, (t) => t.style);
 
   const kpis = [
     {
-      label: "Reservas esta semana",
-      value: String(reservasSemana.length),
-      hint: reservasSemana.length > 0 ? "confirmadas" : "— sin reservas"
+      label: "Reservas este mes",
+      value: String(monthRealized.length),
+      hint: `${monthCompleted.length} completadas`
     },
     {
-      label: "Ingresos del mes",
-      value: ingresosMes > 0 ? formatCLP(ingresosMes) : "—",
-      hint: "confirmadas + completadas"
+      label: "Venta total del mes",
+      value: formatCLP(monthIncome),
+      hint: monthRealized.length > 0 ? "confirmadas + completadas" : "sin ventas aún"
     },
     {
-      label: "Próxima cita",
-      value: proximaCita ? format(parseISO(proximaCita.date), "dd MMM") : "—",
-      hint: proximaCita ? `${proximaCita.client.name} · ${proximaCita.startTime}` : "sin próximas"
+      label: "Horas realizadas",
+      value: formatHours(monthHoursDone),
+      hint: `${monthCompleted.length} sesiones cerradas`
     },
     {
       label: "Pendientes de confirmar",
@@ -71,8 +85,8 @@ export default async function DashboardPage() {
     <div className="space-y-10 max-w-6xl">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <span className="eyebrow">Panel</span>
-          <h1 className="display-md mt-1">Dashboard</h1>
+          <span className="eyebrow">Panel · {format(today, "MMMM yyyy", { locale: es })}</span>
+          <h1 className="display-md mt-1 capitalize">Dashboard</h1>
         </div>
         <Badge variant={source === "sheets" ? "outline" : "muted"}>
           {source === "sheets" ? "Google Sheets · en vivo" : "Mock local"}
@@ -105,9 +119,30 @@ export default async function DashboardPage() {
         ))}
       </section>
 
+      <section className="grid md:grid-cols-3 gap-4">
+        <div className="border border-line bg-surface p-5">
+          <div className="text-xs uppercase tracking-editorial text-muted">Clientes únicos</div>
+          <div className="font-display text-3xl mt-2">{uniqueClients}</div>
+          <div className="text-xs text-muted mt-1">histórico</div>
+        </div>
+        <div className="border border-line bg-surface p-5">
+          <div className="text-xs uppercase tracking-editorial text-muted">Precio promedio por tatuaje</div>
+          <div className="font-display text-3xl mt-2">{formatCLP(avgPrice)}</div>
+          <div className="text-xs text-muted mt-1">{allTattoos.length} tatuajes</div>
+        </div>
+        <div className="border border-line bg-surface p-5">
+          <div className="text-xs uppercase tracking-editorial text-muted">Tamaño promedio</div>
+          <div className="font-display text-3xl mt-2">{avgSize > 0 ? `${avgSize.toFixed(1)} cm²` : "—"}</div>
+          <div className="text-xs text-muted mt-1">área (ancho × alto)</div>
+        </div>
+      </section>
+
       <section className="grid md:grid-cols-2 gap-6">
         <ProximasCitas citas={proximas} />
-        <Config />
+        <div className="space-y-6">
+          <Ranking title="Zonas del cuerpo" items={byBody.slice(0, 5)} />
+          <Ranking title="Estilos" items={byStyle} />
+        </div>
       </section>
     </div>
   );
@@ -134,7 +169,7 @@ function ProximasCitas({ citas }: { citas: Booking[] }) {
               <div className="flex-1 min-w-0">
                 <div className="font-medium truncate">{b.client.name}</div>
                 <div className="text-xs text-muted capitalize">
-                  {formatDateLong(b.date)} · {b.startTime}
+                  {formatDateShort(b.date)} · {b.startTime}
                 </div>
               </div>
               <div className="text-sm font-display">{formatCLP(b.totalPrice)}</div>
@@ -146,22 +181,46 @@ function ProximasCitas({ citas }: { citas: Booking[] }) {
   );
 }
 
-function Config() {
+function Ranking({
+  title,
+  items
+}: {
+  title: string;
+  items: { key: string; count: number }[];
+}) {
+  const max = Math.max(1, ...items.map((i) => i.count));
   return (
     <div className="border border-line bg-surface p-6">
-      <h2 className="font-display text-2xl">Empieza por acá</h2>
-      <p className="text-sm text-ink-soft mt-2">
-        Si aún no lo has hecho, carga tu tabla de precios y la matriz de
-        horas. Alimentan la cotización del flujo público.
-      </p>
-      <div className="mt-5 flex flex-wrap gap-3">
-        <Button asChild>
-          <Link href="/admin/configuracion/precios">Subir precios</Link>
-        </Button>
-        <Button asChild variant="secondary">
-          <Link href="/admin/configuracion/horas">Matriz de horas</Link>
-        </Button>
-      </div>
+      <h3 className="eyebrow mb-4">{title}</h3>
+      {items.length === 0 ? (
+        <p className="text-sm text-muted">Sin datos todavía.</p>
+      ) : (
+        <ul className="space-y-3">
+          {items.map((i) => (
+            <li key={i.key}>
+              <div className="flex justify-between text-sm">
+                <span className="capitalize">{i.key}</span>
+                <span className="text-muted">{i.count}</span>
+              </div>
+              <div className="mt-1 h-1 bg-line">
+                <div className="h-full bg-ink" style={{ width: `${(i.count / max) * 100}%` }} />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
+}
+
+function aggregate<T>(items: T[], extract: (x: T) => string): { key: string; count: number }[] {
+  const m = new Map<string, number>();
+  for (const it of items) {
+    const k = String(extract(it) ?? "").toLowerCase().trim();
+    if (!k) continue;
+    m.set(k, (m.get(k) ?? 0) + 1);
+  }
+  return Array.from(m.entries())
+    .map(([key, count]) => ({ key, count }))
+    .sort((a, b) => b.count - a.count);
 }

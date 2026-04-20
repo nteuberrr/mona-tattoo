@@ -5,21 +5,19 @@ import { useRouter } from "next/navigation";
 import { Copy, Upload, Check } from "lucide-react";
 import { useBooking } from "./BookingContext";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { totals, calculateDeposit } from "@/lib/pricing/calculator";
-import { estimate } from "@/lib/pricing/calculator";
 import { formatCLP } from "@/lib/utils";
 
 export function Step5Transfer() {
   const router = useRouter();
-  const { personal, tattoos, schedule, dispatch, pricing, hours, payment } = useBooking();
-  const [reference, setReference] = React.useState("");
+  const { personal, tattoos, schedule, dispatch, pricing, hours, payment, discount } = useBooking();
   const [receipt, setReceipt] = React.useState<File | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [copied, setCopied] = React.useState<string | null>(null);
 
-  const { price: tTotal } = totals(tattoos, { pricing, hours });
+  const t = totals(tattoos, { pricing, hours }, discount);
+  const tTotal = t.price;
   const deposit = calculateDeposit(tTotal, payment.depositMode, payment.depositValue);
 
   const copy = (v: string) => {
@@ -32,12 +30,12 @@ export function Step5Transfer() {
     if (!personal || !schedule) return;
     setLoading(true);
     try {
-      // Enriquecemos cada tatuaje con su precio/horas calculados
-      const enrichedTattoos = tattoos.map((t) => {
-        const e = estimate(t, { pricing, hours });
-        return { ...t, price: e.price, hours: e.hours };
+      // Enriquecemos cada tatuaje con su precio (con descuento aplicado) y horas
+      const enrichedTattoos = tattoos.map((tt, i) => {
+        const item = t.items[i];
+        return { ...tt, price: item.price, hours: item.hours };
       });
-      const totalHoursVal = enrichedTattoos.reduce((acc, t) => acc + (t.hours as number), 0);
+      const totalHoursVal = t.hours;
       const endTime = computeEndTime(schedule?.startTime, totalHoursVal);
 
       const res = await fetch("/api/reservas", {
@@ -50,7 +48,7 @@ export function Step5Transfer() {
           totalHours: totalHoursVal,
           totalPrice: tTotal,
           depositAmount: deposit,
-          transferReference: reference || null
+          transferReference: null
         })
       });
       const data = await res.json();
@@ -95,19 +93,9 @@ export function Step5Transfer() {
       </section>
 
       <section className="space-y-5">
-        <h3 className="eyebrow">Opcional · para agilizar la confirmación</h3>
-
+        <h3 className="eyebrow">Comprobante · opcional pero ayuda</h3>
         <div>
-          <Label>Número de operación / referencia</Label>
-          <Input
-            placeholder="Ej: 1234567"
-            value={reference}
-            onChange={(e) => setReference(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <Label>Comprobante (imagen o PDF)</Label>
+          <Label>Sube el comprobante (imagen o PDF)</Label>
           <label className="mt-2 flex items-center gap-3 border border-dashed border-line p-5 cursor-pointer hover:border-ink transition-colors">
             <Upload className="h-5 w-5 text-muted" />
             <span className="text-sm text-ink-soft">

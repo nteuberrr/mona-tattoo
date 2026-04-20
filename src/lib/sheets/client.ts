@@ -16,7 +16,12 @@ export type SheetsAction =
   | "saveConfig"
   | "getBlocks"
   | "createBlock"
-  | "deleteBlock";
+  | "deleteBlock"
+  | "getUsers"
+  | "createUser"
+  | "updateUser"
+  | "deleteUser"
+  | "validateUser";
 
 export type SheetsResponse<T = unknown> =
   | { ok: true; data: T }

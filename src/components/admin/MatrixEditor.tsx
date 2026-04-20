@@ -136,18 +136,27 @@ export function MatrixEditor({
                 <th className="sticky left-0 bg-surface border-r border-b border-line p-2 text-muted font-normal text-xs">
                   {h}
                 </th>
-                {SIZES.map((_, c) => (
-                  <td key={c} className="border-b border-l border-line">
-                    <input
-                      type="text"
-                      inputMode={numberFormat === "integer" ? "numeric" : "decimal"}
-                      value={active[r][c] ?? ""}
-                      onChange={(e) => setCell(r, c, e.target.value)}
-                      className="w-full h-10 text-right px-2 bg-transparent font-body text-sm focus:outline-none focus:bg-line/40"
-                      placeholder="—"
-                    />
-                  </td>
-                ))}
+                {SIZES.map((_, c) => {
+                  const cell = active[r][c];
+                  const display =
+                    cell == null
+                      ? ""
+                      : numberFormat === "decimal"
+                      ? cell.toFixed(1)
+                      : String(cell);
+                  return (
+                    <td key={c} className="border-b border-l border-line">
+                      <input
+                        type="text"
+                        inputMode={numberFormat === "integer" ? "numeric" : "decimal"}
+                        value={display}
+                        onChange={(e) => setCell(r, c, e.target.value)}
+                        className="w-full h-10 text-right px-2 bg-transparent font-body text-sm focus:outline-none focus:bg-line/40"
+                        placeholder="—"
+                      />
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>

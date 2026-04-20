@@ -2,6 +2,7 @@ import { fetchMatrices } from "@/lib/pricing/sheets";
 import { configValue, getConfig } from "@/lib/config/sheets";
 import { BookingClient } from "@/components/booking/BookingClient";
 import type { PaymentInfo } from "@/components/booking/BookingContext";
+import type { DiscountConfig } from "@/lib/pricing/calculator";
 
 export const revalidate = 60;
 
@@ -25,7 +26,18 @@ export default async function ReservarPage() {
     depositValue
   };
 
+  const discount: DiscountConfig = {
+    multiTattooActive: String(configValue(config, "descuento_multi_tatuaje_activo")).toUpperCase() === "TRUE",
+    multiTattooPct: Number(configValue(config, "descuento_multi_tatuaje_pct")) || 0
+  };
+
   return (
-    <BookingClient pricing={pricing} hours={hours} payment={payment} source={source} />
+    <BookingClient
+      pricing={pricing}
+      hours={hours}
+      payment={payment}
+      discount={discount}
+      source={source}
+    />
   );
 }

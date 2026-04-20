@@ -5,13 +5,16 @@ import { useBooking } from "./BookingContext";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { estimate, totals, calculateDeposit } from "@/lib/pricing/calculator";
-import { formatCLP, formatDateLong } from "@/lib/utils";
+import { totals, calculateDeposit } from "@/lib/pricing/calculator";
+import { formatCLP, formatDateLong, formatHours } from "@/lib/utils";
 
 export function Step4Quote() {
-  const { personal, tattoos, schedule, acceptedTerms, dispatch, pricing, hours, payment } = useBooking();
+  const { personal, tattoos, schedule, acceptedTerms, dispatch, pricing, hours, payment, discount } = useBooking();
   const matrices = { pricing, hours };
-  const { price: tTotal, hours: hTotal, anySpecialSize } = totals(tattoos, matrices);
+  const t = totals(tattoos, matrices, discount);
+  const tTotal = t.price;
+  const hTotal = t.hours;
+  const anySpecialSize = t.anySpecialSize;
   const deposit = calculateDeposit(tTotal, payment.depositMode, payment.depositValue);
 
   if (!personal || !schedule) return null;
@@ -45,34 +48,50 @@ export function Step4Quote() {
       <section className="border border-line bg-surface p-6 md:p-8">
         <h3 className="eyebrow mb-4">Tatuajes</h3>
         <div className="divide-y divide-line">
-          {tattoos.map((t, i) => {
-            const e = estimate(t, matrices);
+          {tattoos.map((tt, i) => {
+            const item = t.items[i];
             return (
-              <div key={t.id} className="py-4 grid md:grid-cols-[1fr_auto] gap-4">
+              <div key={tt.id} className="py-4 grid md:grid-cols-[1fr_auto] gap-4">
                 <div>
                   <div className="font-display text-xl flex flex-wrap items-center gap-2">
                     Tatuaje {i + 1}
-                    {!e.fromMatrix && (
+                    {!item.fromMatrix && (
                       <Badge variant="warning" className="text-[0.6rem]">
                         Tamaño especial
                       </Badge>
                     )}
+                    {item.discount > 0 && (
+                      <Badge variant="success" className="text-[0.6rem]">
+                        −{discount.multiTattooPct}% descuento
+                      </Badge>
+                    )}
                   </div>
                   <div className="text-ink-soft text-sm mt-1">
-                    {t.widthCm} × {t.heightCm} cm ·{" "}
-                    <span className="capitalize">{t.style}</span> ·{" "}
-                    <span className="capitalize">{t.color}</span> ·{" "}
-                    <span className="capitalize">{t.bodyPart}</span>
+                    {tt.widthCm} × {tt.heightCm} cm ·{" "}
+                    <span className="capitalize">{tt.style}</span> ·{" "}
+                    <span className="capitalize">{tt.color}</span> ·{" "}
+                    <span className="capitalize">{tt.bodyPart}</span>
                   </div>
-                  <p className="text-sm text-ink-soft mt-2 line-clamp-2">{t.description}</p>
+                  <p className="text-sm text-ink-soft mt-2 line-clamp-2">{tt.description}</p>
                 </div>
                 <div className="text-right whitespace-nowrap">
                   <div className="text-muted text-xs uppercase tracking-editorial">
-                    {e.hours} h
+                    {formatHours(item.hours)}
                   </div>
-                  <div className="font-display text-2xl mt-1">
-                    {formatCLP(e.price)}
-                  </div>
+                  {item.discount > 0 ? (
+                    <>
+                      <div className="text-xs text-muted line-through">
+                        {formatCLP(item.priceBeforeDiscount)}
+                      </div>
+                      <div className="font-display text-2xl">
+                        {formatCLP(item.price)}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="font-display text-2xl mt-1">
+                      {formatCLP(item.price)}
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -82,22 +101,52 @@ export function Step4Quote() {
 
       <section className="border border-line bg-surface p-6 md:p-8">
         <h3 className="eyebrow mb-4">Horario</h3>
-        <div className="text-sm">
-          <div className="font-display text-xl capitalize">
-            {formatDateLong(schedule.date)}
+        <div className="text-sm space-y-3">
+          <div>
+            <div className="font-display text-xl capitalize">
+              {formatDateLong(schedule.date)}
+            </div>
+            <div className="text-ink-soft mt-1">
+              {schedule.startTime} hrs · duración estimada {formatHours(hTotal)}
+            </div>
           </div>
-          <div className="text-ink-soft mt-1">
-            {schedule.startTime} hrs · duración estimada {hTotal} h
-          </div>
+          {schedule.additionalBlocks && schedule.additionalBlocks.length > 0 && (
+            <div className="border-t border-line pt-3">
+              <div className="text-xs uppercase tracking-editorial text-muted mb-2">
+                Bloques adicionales
+              </div>
+              {schedule.additionalBlocks.map((b, i) => (
+                <div key={i} className="text-ink-soft">
+                  <span className="capitalize">{formatDateLong(b.date)}</span> · {b.startTime} hrs
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
-      <section className="border border-ink bg-ink text-bg p-6 md:p-8">
-        <div className="flex items-baseline justify-between gap-6">
-          <span className="eyebrow !text-bg/60">Total estimado</span>
+      <section className="border border-ink bg-ink text-bg p-6 md:p-8 space-y-3">
+        {t.discountTotal > 0 && (
+          <div className="flex items-baseline justify-between gap-6 text-sm">
+            <span className="text-bg/70">
+              Subtotal antes de descuento
+            </span>
+            <span className="font-display">{formatCLP(tTotal + t.discountTotal)}</span>
+          </div>
+        )}
+        {t.discountTotal > 0 && (
+          <div className="flex items-baseline justify-between gap-6 text-sm text-[#C7E0C7]">
+            <span>
+              Descuento multi-tatuaje ({discount.multiTattooPct}%)
+            </span>
+            <span className="font-display">−{formatCLP(t.discountTotal)}</span>
+          </div>
+        )}
+        <div className="flex items-baseline justify-between gap-6 pt-2 border-t border-bg/20">
+          <span className="eyebrow !text-bg/60">Total</span>
           <span className="font-display text-4xl">{formatCLP(tTotal)}</span>
         </div>
-        <div className="flex items-baseline justify-between gap-6 mt-3 pt-3 border-t border-bg/20">
+        <div className="flex items-baseline justify-between gap-6 pt-2 border-t border-bg/20">
           <span className="text-bg/70 text-sm">
             Abono para reservar{" "}
             {payment.depositMode === "PERCENTAGE"

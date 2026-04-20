@@ -49,7 +49,9 @@ export const CONFIG_DEFAULTS = {
   horario_jueves: "10:00-16:00",
   horario_viernes: "10:00-16:00",
   horario_sabado: "off",
-  horario_domingo: "off"
+  horario_domingo: "off",
+  descuento_multi_tatuaje_pct: "10",
+  descuento_multi_tatuaje_activo: "TRUE"
 } as const;
 
 export function configValue(config: ConfigMap, key: keyof typeof CONFIG_DEFAULTS): string {

@@ -7,6 +7,7 @@ import type {
   TattooData
 } from "@/lib/validations/booking";
 import type { HoursMatrices, PricingMatrices } from "@/lib/pricing/types";
+import type { DiscountConfig } from "@/lib/pricing/calculator";
 
 export type PaymentInfo = {
   holderName: string;
@@ -67,6 +68,7 @@ type Ctx = State & {
   pricing: PricingMatrices;
   hours: HoursMatrices;
   payment: PaymentInfo;
+  discount: DiscountConfig;
   source: "sheets" | "fallback";
 };
 
@@ -77,18 +79,20 @@ export function BookingProvider({
   pricing,
   hours,
   payment,
+  discount,
   source
 }: {
   children: React.ReactNode;
   pricing: PricingMatrices;
   hours: HoursMatrices;
   payment: PaymentInfo;
+  discount: DiscountConfig;
   source: "sheets" | "fallback";
 }) {
   const [state, dispatch] = React.useReducer(reducer, initialState);
   return (
     <BookingContext.Provider
-      value={{ ...state, dispatch, pricing, hours, payment, source }}
+      value={{ ...state, dispatch, pricing, hours, payment, discount, source }}
     >
       {children}
     </BookingContext.Provider>
