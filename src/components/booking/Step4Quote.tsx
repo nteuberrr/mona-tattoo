@@ -4,19 +4,14 @@ import * as React from "react";
 import { useBooking } from "./BookingContext";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  estimateHours,
-  estimatePrice,
-  totalHours,
-  totalPrice,
-  calculateDeposit
-} from "@/lib/pricing/mock";
+import { Badge } from "@/components/ui/badge";
+import { estimate, totals, calculateDeposit } from "@/lib/pricing/calculator";
 import { formatCLP, formatDateLong } from "@/lib/utils";
 
 export function Step4Quote() {
-  const { personal, tattoos, schedule, acceptedTerms, dispatch } = useBooking();
-  const tTotal = totalPrice(tattoos);
-  const hTotal = totalHours(tattoos);
+  const { personal, tattoos, schedule, acceptedTerms, dispatch, pricing, hours } = useBooking();
+  const matrices = { pricing, hours };
+  const { price: tTotal, hours: hTotal, anySpecialSize } = totals(tattoos, matrices);
   const deposit = calculateDeposit(tTotal, "PERCENTAGE", 30);
 
   if (!personal || !schedule) return null;
@@ -29,6 +24,12 @@ export function Step4Quote() {
           Revisa todo antes de avanzar. El abono reserva tu cupo durante 30
           minutos mientras haces la transferencia.
         </p>
+        {anySpecialSize && (
+          <div className="mt-4 bg-[#F6E6C4] text-[#6B5217] border border-[#D9B860] p-3 text-xs">
+            ✦ Una o más dimensiones no están en la tabla estándar. Confirmaremos
+            el precio final por correo antes de cobrar el abono.
+          </div>
+        )}
       </div>
 
       <section className="border border-line bg-surface p-6 md:p-8">
@@ -44,33 +45,38 @@ export function Step4Quote() {
       <section className="border border-line bg-surface p-6 md:p-8">
         <h3 className="eyebrow mb-4">Tatuajes</h3>
         <div className="divide-y divide-line">
-          {tattoos.map((t, i) => (
-            <div key={t.id} className="py-4 grid md:grid-cols-[1fr_auto] gap-4">
-              <div>
-                <div className="font-display text-xl">
-                  Tatuaje {i + 1}
-                  {t.isSpecialSize && (
-                    <span className="ml-2 text-xs uppercase tracking-editorial text-warning">
-                      ✦ Tamaño especial
-                    </span>
-                  )}
+          {tattoos.map((t, i) => {
+            const e = estimate(t, matrices);
+            return (
+              <div key={t.id} className="py-4 grid md:grid-cols-[1fr_auto] gap-4">
+                <div>
+                  <div className="font-display text-xl flex flex-wrap items-center gap-2">
+                    Tatuaje {i + 1}
+                    {!e.fromMatrix && (
+                      <Badge variant="warning" className="text-[0.6rem]">
+                        Tamaño especial
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="text-ink-soft text-sm mt-1">
+                    {t.widthCm} × {t.heightCm} cm ·{" "}
+                    <span className="capitalize">{t.style}</span> ·{" "}
+                    <span className="capitalize">{t.color}</span> ·{" "}
+                    <span className="capitalize">{t.bodyPart}</span>
+                  </div>
+                  <p className="text-sm text-ink-soft mt-2 line-clamp-2">{t.description}</p>
                 </div>
-                <div className="text-ink-soft text-sm mt-1">
-                  {t.widthCm} × {t.heightCm} cm · <span className="capitalize">{t.style}</span> ·{" "}
-                  <span className="capitalize">{t.color}</span> · <span className="capitalize">{t.bodyPart}</span>
+                <div className="text-right whitespace-nowrap">
+                  <div className="text-muted text-xs uppercase tracking-editorial">
+                    {e.hours} h
+                  </div>
+                  <div className="font-display text-2xl mt-1">
+                    {formatCLP(e.price)}
+                  </div>
                 </div>
-                <p className="text-sm text-ink-soft mt-2 line-clamp-2">{t.description}</p>
               </div>
-              <div className="text-right whitespace-nowrap">
-                <div className="text-muted text-xs uppercase tracking-editorial">
-                  {estimateHours(t)} h
-                </div>
-                <div className="font-display text-2xl mt-1">
-                  {formatCLP(estimatePrice(t))}
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 

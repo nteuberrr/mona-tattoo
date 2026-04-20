@@ -6,6 +6,7 @@ import type {
   ScheduleData,
   TattooData
 } from "@/lib/validations/booking";
+import type { HoursMatrices, PricingMatrices } from "@/lib/pricing/types";
 
 export type BookingStep = 1 | 2 | 3 | 4 | 5;
 
@@ -52,14 +53,29 @@ function reducer(state: State, action: Action): State {
 
 type Ctx = State & {
   dispatch: React.Dispatch<Action>;
+  pricing: PricingMatrices;
+  hours: HoursMatrices;
+  source: "sheets" | "fallback";
 };
 
 const BookingContext = React.createContext<Ctx | null>(null);
 
-export function BookingProvider({ children }: { children: React.ReactNode }) {
+export function BookingProvider({
+  children,
+  pricing,
+  hours,
+  source
+}: {
+  children: React.ReactNode;
+  pricing: PricingMatrices;
+  hours: HoursMatrices;
+  source: "sheets" | "fallback";
+}) {
   const [state, dispatch] = React.useReducer(reducer, initialState);
   return (
-    <BookingContext.Provider value={{ ...state, dispatch }}>
+    <BookingContext.Provider
+      value={{ ...state, dispatch, pricing, hours, source }}
+    >
       {children}
     </BookingContext.Provider>
   );

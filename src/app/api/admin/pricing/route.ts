@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { callSheets, isSheetsConfigured } from "@/lib/sheets/client";
 
 /**
@@ -26,5 +27,6 @@ export async function POST(req: Request) {
   if (!res.ok) {
     return NextResponse.json({ error: res.error }, { status: 502 });
   }
+  revalidatePath("/reservar");
   return NextResponse.json({ ok: true });
 }

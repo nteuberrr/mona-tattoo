@@ -7,7 +7,8 @@ import { useBooking } from "./BookingContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { totalPrice, calculateDeposit } from "@/lib/pricing/mock";
+import { totals, calculateDeposit } from "@/lib/pricing/calculator";
+import { estimate } from "@/lib/pricing/calculator";
 import { formatCLP } from "@/lib/utils";
 
 // En Fase 2 estos datos vienen del modelo PaymentSettings
@@ -22,13 +23,13 @@ const PAYMENT_INFO = {
 
 export function Step5Transfer() {
   const router = useRouter();
-  const { personal, tattoos, schedule, dispatch } = useBooking();
+  const { personal, tattoos, schedule, dispatch, pricing, hours } = useBooking();
   const [reference, setReference] = React.useState("");
   const [receipt, setReceipt] = React.useState<File | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [copied, setCopied] = React.useState<string | null>(null);
 
-  const tTotal = totalPrice(tattoos);
+  const { price: tTotal } = totals(tattoos, { pricing, hours });
   const deposit = calculateDeposit(tTotal, "PERCENTAGE", 30);
 
   const copy = (v: string) => {
@@ -41,13 +42,22 @@ export function Step5Transfer() {
     if (!personal || !schedule) return;
     setLoading(true);
     try {
+      // Enriquecemos cada tatuaje con su precio/horas calculados
+      const enrichedTattoos = tattoos.map((t) => {
+        const e = estimate(t, { pricing, hours });
+        return { ...t, price: e.price, hours: e.hours };
+      });
+      const totalHoursVal = enrichedTattoos.reduce((acc, t) => acc + (t.hours as number), 0);
+      const endTime = computeEndTime(schedule?.startTime, totalHoursVal);
+
       const res = await fetch("/api/reservas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           personal,
-          tattoos,
-          schedule,
+          tattoos: enrichedTattoos,
+          schedule: { ...schedule, endTime },
+          totalHours: totalHoursVal,
           totalPrice: tTotal,
           depositAmount: deposit,
           transferReference: reference || null
@@ -126,6 +136,15 @@ export function Step5Transfer() {
       </div>
     </div>
   );
+}
+
+function computeEndTime(start: string | undefined, totalHours: number): string | undefined {
+  if (!start) return undefined;
+  const [h, m] = start.split(":").map(Number);
+  const total = h * 60 + (m ?? 0) + totalHours * 60;
+  const eh = Math.floor(total / 60);
+  const em = Math.round(total % 60);
+  return `${String(eh).padStart(2, "0")}:${String(em).padStart(2, "0")}`;
 }
 
 function CopyRow({

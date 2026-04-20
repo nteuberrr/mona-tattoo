@@ -4,14 +4,14 @@ import * as React from "react";
 import { useBooking } from "./BookingContext";
 import { Button } from "@/components/ui/button";
 import { getAvailability, type DaySlot } from "@/lib/scheduling/mock";
-import { totalHours } from "@/lib/pricing/mock";
+import { totals } from "@/lib/pricing/calculator";
 import { cn } from "@/lib/utils";
 import { SpecialScheduleModal } from "./SpecialScheduleModal";
 import { CalendarClock } from "lucide-react";
 
 export function Step3Schedule() {
-  const { tattoos, schedule, dispatch } = useBooking();
-  const hoursNeeded = totalHours(tattoos);
+  const { tattoos, schedule, dispatch, pricing, hours } = useBooking();
+  const { hours: hoursNeeded } = totals(tattoos, { pricing, hours });
   const [days, setDays] = React.useState<DaySlot[]>([]);
   const [selectedDate, setSelectedDate] = React.useState<string | null>(schedule?.date ?? null);
   const [selectedTime, setSelectedTime] = React.useState<string | null>(schedule?.startTime ?? null);
