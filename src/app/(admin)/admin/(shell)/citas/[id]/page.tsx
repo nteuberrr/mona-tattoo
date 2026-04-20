@@ -2,8 +2,11 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Mail, Phone, Calendar, Clock, ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { SEED_BOOKINGS, statusColor, statusLabel } from "@/lib/mock-bookings";
+import { statusColor, statusLabel } from "@/lib/mock-bookings";
+import { getAllBookings } from "@/lib/bookings";
 import { formatCLP, formatDateLong, cn } from "@/lib/utils";
+
+export const dynamic = "force-dynamic";
 
 export default async function CitaDetailPage({
   params
@@ -11,7 +14,8 @@ export default async function CitaDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const booking = SEED_BOOKINGS.find((b) => b.id === id);
+  const { bookings } = await getAllBookings();
+  const booking = bookings.find((b) => b.id === id);
   if (!booking) notFound();
 
   const c = statusColor(booking.status);

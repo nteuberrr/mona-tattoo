@@ -1,13 +1,13 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { addDays, addWeeks, format, parseISO, startOfWeek } from "date-fns";
 import { ChevronLeft, ChevronRight, Plus, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
-  SEED_BOOKINGS,
   statusColor,
   statusLabel,
   type Booking,
@@ -26,11 +26,18 @@ function timeToOffset(t: string): number {
   return ((h - HOUR_START) * 60 + (m ?? 0)) * (ROW_HEIGHT / 60);
 }
 
-export function WeeklyAgenda() {
-  const [bookings, setBookings] = React.useState<Booking[]>(SEED_BOOKINGS);
+export function WeeklyAgenda({ initialBookings }: { initialBookings: Booking[] }) {
+  const router = useRouter();
+  const [bookings, setBookings] = React.useState<Booking[]>(initialBookings);
   const [weekOffset, setWeekOffset] = React.useState(0);
   const [showCancelled, setShowCancelled] = React.useState(false);
   const [selected, setSelected] = React.useState<Booking | null>(null);
+  const [pendingAction, setPendingAction] = React.useState<string | null>(null);
+
+  // Si initialBookings cambia (porque el padre hizo router.refresh()), sync
+  React.useEffect(() => {
+    setBookings(initialBookings);
+  }, [initialBookings]);
 
   const weekStart = startOfWeek(addWeeks(new Date(), weekOffset), { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 5 }, (_, i) => addDays(weekStart, i));
@@ -48,30 +55,57 @@ export function WeeklyAgenda() {
 
   const pending = bookings.filter((b) => b.status === "PENDING_CONFIRMATION");
 
-  const handleAction = (id: string, action: BookingAction, payload?: { reason?: string }) => {
+  const handleAction = async (
+    id: string,
+    action: BookingAction,
+    payload?: { reason?: string }
+  ) => {
+    // request_more_info y reschedule aún no persisten (Fase 2c)
+    if (action === "request_more_info" || action === "reschedule") return;
+
+    const newStatus: BookingStatus | null =
+      action === "confirm" ? "CONFIRMED"
+      : action === "reject" ? "REJECTED"
+      : action === "mark_completed" ? "COMPLETED"
+      : action === "cancel" ? "CANCELLED"
+      : null;
+    if (!newStatus) return;
+
+    // UI optimista
+    setPendingAction(id);
+    const prevBookings = bookings;
     setBookings((prev) =>
-      prev.map((b) => {
-        if (b.id !== id) return b;
-        switch (action) {
-          case "confirm":
-            return { ...b, status: "CONFIRMED" as BookingStatus, depositPaid: true, confirmedAt: new Date().toISOString() };
-          case "reject":
-            return { ...b, status: "REJECTED" as BookingStatus, rejectionReason: payload?.reason };
-          case "mark_completed":
-            return { ...b, status: "COMPLETED" as BookingStatus };
-          case "cancel":
-            return { ...b, status: "CANCELLED" as BookingStatus };
-          case "request_more_info":
-            // No cambia estado — solo dispara correo (Fase 2b)
-            return b;
-          case "reschedule":
-            return b; // TODO: abrir modal de reagendar (Fase 2)
-          default:
-            return b;
-        }
-      })
+      prev.map((b) =>
+        b.id === id
+          ? {
+              ...b,
+              status: newStatus,
+              depositPaid: newStatus === "CONFIRMED" ? true : b.depositPaid,
+              confirmedAt: newStatus === "CONFIRMED" ? new Date().toISOString() : b.confirmedAt,
+              rejectionReason: newStatus === "REJECTED" ? payload?.reason : b.rejectionReason
+            }
+          : b
+      )
     );
-    if (action !== "request_more_info" && action !== "reschedule") setSelected(null);
+    setSelected(null);
+
+    try {
+      const res = await fetch(`/api/admin/bookings/${id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus, rejectionReason: payload?.reason })
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      // sync con Sheets (por si el servidor adjuntó timestamps, etc.)
+      router.refresh();
+    } catch (e) {
+      console.error("[agenda] error actualizando estado:", e);
+      // rollback
+      setBookings(prevBookings);
+      alert("No se pudo actualizar la reserva. Reintenta.");
+    } finally {
+      setPendingAction(null);
+    }
   };
 
   const openBooking = (b: Booking) => setSelected(b);

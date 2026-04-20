@@ -1,42 +1,44 @@
-"use client";
-
 import Link from "next/link";
 import { addDays, endOfMonth, format, parseISO, startOfMonth, startOfWeek } from "date-fns";
 import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  SEED_BOOKINGS,
   statusColor,
-  statusLabel,
   type Booking
 } from "@/lib/mock-bookings";
+import { getAllBookings } from "@/lib/bookings";
 import { formatCLP, cn, formatDateLong } from "@/lib/utils";
 
-export default function DashboardPage() {
+export const dynamic = "force-dynamic";
+
+export default async function DashboardPage() {
+  const { bookings, source } = await getAllBookings();
+
   const today = new Date();
   const weekStart = startOfWeek(today, { weekStartsOn: 1 });
   const weekEnd = addDays(weekStart, 5);
   const monthStart = startOfMonth(today);
   const monthEnd = endOfMonth(today);
 
-  const all = SEED_BOOKINGS;
-  const pending = all.filter((b) => b.status === "PENDING_CONFIRMATION");
+  const pending = bookings.filter((b) => b.status === "PENDING_CONFIRMATION");
 
-  const reservasSemana = all.filter((b) => {
+  const reservasSemana = bookings.filter((b) => {
+    if (!b.date) return false;
     const d = parseISO(b.date);
     return d >= weekStart && d < weekEnd && b.status === "CONFIRMED";
   });
 
-  const ingresosMes = all
+  const ingresosMes = bookings
     .filter((b) => {
+      if (!b.date) return false;
       const d = parseISO(b.date);
       return d >= monthStart && d <= monthEnd && (b.status === "CONFIRMED" || b.status === "COMPLETED");
     })
-    .reduce((acc, b) => acc + b.totalPrice, 0);
+    .reduce((acc, b) => acc + (b.totalPrice || 0), 0);
 
-  const proximas = all
-    .filter((b) => b.status === "CONFIRMED" && parseISO(b.date) >= today)
+  const proximas = bookings
+    .filter((b) => b.status === "CONFIRMED" && b.date && parseISO(b.date) >= today)
     .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))
     .slice(0, 5);
 
@@ -72,7 +74,9 @@ export default function DashboardPage() {
           <span className="eyebrow">Panel</span>
           <h1 className="display-md mt-1">Dashboard</h1>
         </div>
-        <Badge variant="outline">Fase 2a · data mock</Badge>
+        <Badge variant={source === "sheets" ? "outline" : "muted"}>
+          {source === "sheets" ? "Google Sheets · en vivo" : "Mock local"}
+        </Badge>
       </div>
 
       {pending.length > 0 && (
@@ -147,9 +151,8 @@ function Config() {
     <div className="border border-line bg-surface p-6">
       <h2 className="font-display text-2xl">Empieza por acá</h2>
       <p className="text-sm text-ink-soft mt-2">
-        Antes de recibir reservas reales, carga tu tabla de precios y la
-        matriz de horas. Alimentan la cotización y el cálculo de slots del
-        flujo público.
+        Si aún no lo has hecho, carga tu tabla de precios y la matriz de
+        horas. Alimentan la cotización del flujo público.
       </p>
       <div className="mt-5 flex flex-wrap gap-3">
         <Button asChild>

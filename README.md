@@ -95,6 +95,20 @@ color nuevo, agrégalo ahí — nunca hardcodees hex dentro de componentes.
 
 Ver notas de diseño en [`DESIGN_NOTES.md`](DESIGN_NOTES.md).
 
+## Backend con Google Sheets (Apps Script)
+
+Las reservas, solicitudes especiales y acciones del admin se escriben/leen
+de una Google Sheet vía un Web App de Apps Script. Ver
+[`docs/apps-script/Code.gs`](docs/apps-script/Code.gs) con el script que se
+pega en la Sheet + instrucciones de deploy.
+
+Config requerida:
+- `SHEETS_WEBHOOK_URL` — URL del Web App (termina en `/exec`).
+- `SHEETS_WEBHOOK_SECRET` — mismo valor que `SHARED_SECRET` en Script Properties.
+
+Si ambas están vacías, la app cae a un mock local para que el dev funcione
+sin setup.
+
 ## Desplegar en Vercel
 
 1. Crea un repo en GitHub (vacío, sin README).
@@ -114,9 +128,10 @@ Ver notas de diseño en [`DESIGN_NOTES.md`](DESIGN_NOTES.md).
    |---|---|---|
    | `ADMIN_EMAIL` | sí | correo con el que entras al admin |
    | `ADMIN_INITIAL_PASSWORD` | sí | contraseña para el admin (larga, única) |
-   | `NEXTAUTH_SECRET` | recomendada | `openssl rand -base64 32` |
-   | `NEXTAUTH_URL` | recomendada | URL del deploy (ej. `https://monatatt.vercel.app`) |
-   | `DATABASE_URL` | opcional | solo cuando conectes DB en Fase 2 |
+   | `NEXTAUTH_SECRET` | sí | `openssl rand -base64 32` — firma las cookies de sesión |
+   | `SHEETS_WEBHOOK_URL` | recomendada | URL del Apps Script deployado |
+   | `SHEETS_WEBHOOK_SECRET` | recomendada | secret compartido con el Apps Script |
+   | `NEXTAUTH_URL` | opcional | URL del deploy (`https://monatatt.vercel.app`) |
    | `RESEND_API_KEY` | opcional | solo cuando actives correos |
 
    ⚠️ **Importante**: si `ADMIN_EMAIL` o `ADMIN_INITIAL_PASSWORD` no están
