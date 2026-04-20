@@ -42,7 +42,22 @@ function toNum(v: unknown): number | null {
   if (v === null || v === undefined || v === "") return null;
   if (typeof v === "number") return Number.isFinite(v) ? v : null;
   if (typeof v === "string") {
-    const n = Number(v.replace(",", "."));
+    const raw = v.replace(/[^\d,.\-]/g, "");
+    if (!raw) return null;
+    // Formato chileno: "55.000" → 55000. Heurística:
+    // - si contiene ',' → coma es decimal, puntos son miles
+    // - si solo '.' y últimos dígitos son exactamente 3 → es separador de miles
+    // - caso normal: parsear directo
+    let cleaned = raw;
+    if (raw.includes(",")) {
+      cleaned = raw.replace(/\./g, "").replace(",", ".");
+    } else if ((raw.match(/\./g) || []).length > 1) {
+      cleaned = raw.replace(/\./g, "");
+    } else if (raw.includes(".")) {
+      const after = raw.split(".").pop() ?? "";
+      if (after.length === 3) cleaned = raw.replace(/\./g, "");
+    }
+    const n = Number(cleaned);
     return Number.isFinite(n) ? n : null;
   }
   return null;

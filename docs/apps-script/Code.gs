@@ -357,13 +357,89 @@ function saveConfig(payload) {
   return json({ ok: true });
 }
 
+/**
+ * Lee una matriz de la hoja siendo tolerante a:
+ *  - Filas de título antes del header real
+ *  - Valores en cualquier formato (número, string con $ o separadores)
+ *  - Matriz rodeada de celdas vacías
+ *
+ * Busca una "esquina" donde: (a) a la derecha hay una secuencia de números
+ * en la misma fila (widths), y (b) abajo hay una secuencia de números en
+ * la misma columna (heights). Esa es la celda "Alto \ Ancho".
+ */
 function readMatrix(sheetName) {
   const s = sheet(sheetName);
   const data = s.getDataRange().getValues();
   if (data.length < 2) return { widths: [], heights: [], matrix: [] };
-  return {
-    widths: data[0].slice(1).filter(function (v) { return v !== ""; }),
-    heights: data.slice(1).map(function (row) { return row[0]; }).filter(function (v) { return v !== ""; }),
-    matrix: data.slice(1).map(function (row) { return row.slice(1); })
+
+  const parseNum = function (v) {
+    if (v === null || v === undefined || v === "") return null;
+    if (typeof v === "number") return isFinite(v) ? v : null;
+    const s = String(v).replace(/[^\d,\.\-]/g, "");
+    if (!s) return null;
+    // Formato chileno: "55.000" → 55000. Si tiene punto y sin decimal fraccional
+    // (más de 2 dígitos después del último punto), tratamos puntos como miles.
+    let cleaned = s;
+    if (s.indexOf(",") >= 0) {
+      cleaned = s.replace(/\./g, "").replace(",", ".");
+    } else if ((s.match(/\./g) || []).length > 1) {
+      cleaned = s.replace(/\./g, "");
+    } else if (s.indexOf(".") >= 0) {
+      const afterDot = s.split(".").pop();
+      if (afterDot && afterDot.length === 3) cleaned = s.replace(/\./g, "");
+    }
+    const n = Number(cleaned);
+    return isFinite(n) ? n : null;
   };
+
+  // Buscar la esquina escaneando primeras 10 filas × 10 columnas
+  let cornerRow = -1;
+  let cornerCol = -1;
+  const maxR = Math.min(data.length, 10);
+  const maxC = Math.min(data[0].length, 10);
+
+  for (let r = 0; r < maxR; r++) {
+    for (let c = 0; c < maxC; c++) {
+      let rightNums = 0;
+      for (let cc = c + 1; cc < data[r].length && cc < c + 20; cc++) {
+        if (parseNum(data[r][cc]) != null) rightNums++;
+        else break;
+      }
+      let belowNums = 0;
+      for (let rr = r + 1; rr < data.length && rr < r + 20; rr++) {
+        if (parseNum(data[rr][c]) != null) belowNums++;
+        else break;
+      }
+      if (rightNums >= 3 && belowNums >= 3) {
+        cornerRow = r;
+        cornerCol = c;
+        break;
+      }
+    }
+    if (cornerRow >= 0) break;
+  }
+
+  if (cornerRow < 0) return { widths: [], heights: [], matrix: [] };
+
+  const widths = [];
+  for (let cc = cornerCol + 1; cc < data[cornerRow].length; cc++) {
+    const n = parseNum(data[cornerRow][cc]);
+    if (n == null) break;
+    widths.push(n);
+  }
+
+  const heights = [];
+  const matrix = [];
+  for (let rr = cornerRow + 1; rr < data.length; rr++) {
+    const h = parseNum(data[rr][cornerCol]);
+    if (h == null) break;
+    heights.push(h);
+    const row = [];
+    for (let j = 0; j < widths.length; j++) {
+      row.push(parseNum(data[rr][cornerCol + 1 + j]));
+    }
+    matrix.push(row);
+  }
+
+  return { widths: widths, heights: heights, matrix: matrix };
 }
