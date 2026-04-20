@@ -3,12 +3,12 @@
 import { motion } from "framer-motion";
 
 const PLACEHOLDER_WORKS = [
-  { src: "https://images.unsplash.com/photo-1565058379802-bbe93b2f703a?auto=format&fit=crop&w=800&q=80", alt: "Trabajo 1", tall: false },
-  { src: "https://images.unsplash.com/photo-1611501275019-9b5cda994e8d?auto=format&fit=crop&w=800&q=80", alt: "Trabajo 2", tall: true },
-  { src: "https://images.unsplash.com/photo-1542728928-0011f81446e5?auto=format&fit=crop&w=800&q=80", alt: "Trabajo 3", tall: false },
-  { src: "https://images.unsplash.com/photo-1517148815978-75f6acaaf32c?auto=format&fit=crop&w=800&q=80", alt: "Trabajo 4", tall: true },
-  { src: "https://images.unsplash.com/photo-1551887335-b58c7cb17f15?auto=format&fit=crop&w=800&q=80", alt: "Trabajo 5", tall: false },
-  { src: "https://images.unsplash.com/photo-1581579185169-d4f36162057b?auto=format&fit=crop&w=800&q=80", alt: "Trabajo 6", tall: false }
+  { src: "https://images.unsplash.com/photo-1611501275019-9b5cda994e8d?auto=format&fit=crop&w=800&q=80", alt: "Tatuaje fineline botánico", tall: false },
+  { src: "https://images.unsplash.com/photo-1565058379802-bbe93b2f703a?auto=format&fit=crop&w=800&q=80", alt: "Tatuaje en antebrazo", tall: true },
+  { src: "https://images.unsplash.com/photo-1543059080-f9b1272213d5?auto=format&fit=crop&w=800&q=80", alt: "Tatuaje en espalda", tall: false },
+  { src: "https://images.unsplash.com/photo-1542856391-010fb87dcfed?auto=format&fit=crop&w=800&q=80", alt: "Tatuaje en brazo", tall: true },
+  { src: "https://images.unsplash.com/photo-1568515045052-f9a854d70bfd?auto=format&fit=crop&w=800&q=80", alt: "Tatuaje detalle", tall: false },
+  { src: "https://images.unsplash.com/photo-1554189097-ffe88e998a2b?auto=format&fit=crop&w=800&q=80", alt: "Tatuaje fineline", tall: false }
 ];
 
 export function Gallery() {
