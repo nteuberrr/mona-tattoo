@@ -13,7 +13,10 @@ export type SheetsAction =
   | "getPricing"
   | "savePricing"
   | "saveHours"
-  | "saveConfig";
+  | "saveConfig"
+  | "getBlocks"
+  | "createBlock"
+  | "deleteBlock";
 
 export type SheetsResponse<T = unknown> =
   | { ok: true; data: T }

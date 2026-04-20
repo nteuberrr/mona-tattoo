@@ -14,6 +14,7 @@ import {
   type BookingStatus
 } from "@/lib/mock-bookings";
 import { BookingPanel, type BookingAction } from "./BookingPanel";
+import { ManualBookingModal } from "./ManualBookingModal";
 
 const HOUR_START = 10;
 const HOUR_END = 16; // last column header
@@ -33,6 +34,7 @@ export function WeeklyAgenda({ initialBookings }: { initialBookings: Booking[] }
   const [showCancelled, setShowCancelled] = React.useState(false);
   const [selected, setSelected] = React.useState<Booking | null>(null);
   const [pendingAction, setPendingAction] = React.useState<string | null>(null);
+  const [manualOpen, setManualOpen] = React.useState(false);
 
   // Si initialBookings cambia (porque el padre hizo router.refresh()), sync
   React.useEffect(() => {
@@ -167,7 +169,7 @@ export function WeeklyAgenda({ initialBookings }: { initialBookings: Booking[] }
             {showCancelled ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
             {showCancelled ? "Ocultar canceladas" : "Ver canceladas"}
           </Button>
-          <Button size="sm" disabled title="Disponible en Fase 2b">
+          <Button size="sm" onClick={() => setManualOpen(true)}>
             <Plus className="h-4 w-4" /> Crear cita manual
           </Button>
         </div>
@@ -307,6 +309,7 @@ export function WeeklyAgenda({ initialBookings }: { initialBookings: Booking[] }
       </div>
 
       <BookingPanel booking={selected} onClose={() => setSelected(null)} onAction={handleAction} />
+      <ManualBookingModal open={manualOpen} onOpenChange={setManualOpen} />
     </div>
   );
 }

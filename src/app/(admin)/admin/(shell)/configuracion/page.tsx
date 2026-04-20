@@ -18,7 +18,13 @@ const SECTIONS = [
     href: "/admin/configuracion/horarios",
     icon: CalendarX,
     title: "Horarios de atención",
-    body: "Modifica el horario default, bloquea feriados o franjas específicas."
+    body: "Define los horarios default por día de la semana (Lun–Dom)."
+  },
+  {
+    href: "/admin/configuracion/bloqueos",
+    icon: CalendarX,
+    title: "Bloqueos de agenda",
+    body: "Feriados, vacaciones o franjas puntuales en las que no recibes reservas."
   },
   {
     href: "/admin/configuracion/pago",

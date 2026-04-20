@@ -64,6 +64,12 @@ function doPost(e) {
         return saveHours(body.payload || {});
       case "saveConfig":
         return saveConfig(body.payload || {});
+      case "getBlocks":
+        return getBlocks();
+      case "createBlock":
+        return createBlock(body.payload || {});
+      case "deleteBlock":
+        return deleteBlock(body.payload || {});
       default:
         return json({ error: "Unknown action: " + body.action }, 400);
     }
@@ -126,11 +132,12 @@ function createBooking(payload) {
   const id = genId("bk");
   const clientId = genId("c");
   const timestamp = now();
+  const initialStatus = payload.initialStatus || "PENDING_CONFIRMATION";
 
   r.appendRow([
     id,
     timestamp,
-    "PENDING_CONFIRMATION",
+    initialStatus,
     clientId,
     payload.client.name,
     payload.client.email,
@@ -146,12 +153,12 @@ function createBooking(payload) {
     "FALSE",
     payload.transferReference || "",
     payload.transferReceiptUrl || "",
-    "",          // notas_admin
-    timestamp,   // pendiente_desde
-    "",          // confirmada_en
-    "",          // cliente_notificado_en
-    "",          // motivo_rechazo
-    ""           // slot_hold_hasta
+    payload.notes || "",                                    // notas_admin
+    initialStatus === "CONFIRMED" ? "" : timestamp,          // pendiente_desde
+    initialStatus === "CONFIRMED" ? timestamp : "",          // confirmada_en
+    "",                                                      // cliente_notificado_en
+    "",                                                      // motivo_rechazo
+    ""                                                       // slot_hold_hasta
   ]);
 
   (payload.tattoos || []).forEach(function (tat, idx) {
@@ -171,7 +178,54 @@ function createBooking(payload) {
     ]);
   });
 
-  return json({ id: id, status: "PENDING_CONFIRMATION" });
+  return json({ id: id, status: initialStatus });
+}
+
+// ==============================================================
+//  Bloqueos de agenda
+// ==============================================================
+
+function getBlocks() {
+  const s = sheet("Bloqueos_Agenda");
+  const data = s.getDataRange().getValues();
+  if (data.length <= 1) return json({ blocks: [] });
+  const headers = data[0];
+  const blocks = data.slice(1)
+    .filter(function (row) { return row[0]; })
+    .map(function (row) { return rowToObject(headers, row); });
+  return json({ blocks: blocks });
+}
+
+/**
+ * payload: { date, startTime?, endTime?, reason, allDay }
+ */
+function createBlock(payload) {
+  const s = sheet("Bloqueos_Agenda");
+  const id = genId("blk");
+  s.appendRow([
+    id,
+    payload.date || "",
+    payload.startTime || "",
+    payload.endTime || "",
+    payload.reason || "",
+    payload.allDay ? "TRUE" : "FALSE"
+  ]);
+  return json({ id: id });
+}
+
+/**
+ * payload: { id }
+ */
+function deleteBlock(payload) {
+  const s = sheet("Bloqueos_Agenda");
+  const data = s.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === payload.id) {
+      s.deleteRow(i + 1);
+      return json({ ok: true });
+    }
+  }
+  return json({ error: "Bloqueo no encontrado" }, 404);
 }
 
 /**
