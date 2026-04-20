@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Instagram, Mail, ArrowUp } from "lucide-react";
+import { Instagram, Mail, ArrowUp, Lock } from "lucide-react";
 
 export function Footer() {
   return (
@@ -47,12 +47,23 @@ export function Footer() {
       <div className="border-t border-line">
         <div className="container mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 py-6 text-xs text-muted">
           <span>© {new Date().getFullYear()} Mona Tatt. Todos los derechos reservados.</span>
-          <button
-            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            className="inline-flex items-center gap-2 hover:text-ink transition-colors"
-          >
-            Volver arriba <ArrowUp className="h-3 w-3" />
-          </button>
+
+          <div className="flex items-center gap-6">
+            <Link
+              href="/admin/login"
+              className="inline-flex items-center gap-1.5 hover:text-ink transition-colors uppercase tracking-editorial"
+              aria-label="Acceso al panel admin"
+            >
+              <Lock className="h-3 w-3" />
+              Acceso admin
+            </Link>
+            <button
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              className="inline-flex items-center gap-2 hover:text-ink transition-colors"
+            >
+              Volver arriba <ArrowUp className="h-3 w-3" />
+            </button>
+          </div>
         </div>
       </div>
     </footer>
