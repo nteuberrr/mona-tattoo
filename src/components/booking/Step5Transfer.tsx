@@ -15,6 +15,7 @@ export function Step5Transfer() {
   const [receipt, setReceipt] = React.useState<File | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [copied, setCopied] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
 
   const t = totals(tattoos, { pricing, hours }, discount);
   const tTotal = t.price;
@@ -51,9 +52,15 @@ export function Step5Transfer() {
           transferReference: null
         })
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? "No se pudo registrar la reserva");
+        return;
+      }
       dispatch({ type: "reset" });
       router.push(`/reserva-enviada/${data.id ?? "demo"}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error inesperado");
     } finally {
       setLoading(false);
     }
@@ -110,6 +117,15 @@ export function Step5Transfer() {
           </label>
         </div>
       </section>
+
+      {error && (
+        <div className="bg-danger/10 text-danger border border-danger/40 p-4 text-sm">
+          <strong>No se pudo registrar:</strong> {error}
+          <div className="mt-2 text-xs">
+            Si el horario ya no está disponible, vuelve al paso 3 y elige otro.
+          </div>
+        </div>
+      )}
 
       <div className="pt-4 flex items-center justify-between gap-4 flex-wrap">
         <Button variant="ghost" onClick={() => dispatch({ type: "goTo", step: 4 })}>

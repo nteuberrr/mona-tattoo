@@ -8,6 +8,7 @@ import type {
 } from "@/lib/validations/booking";
 import type { HoursMatrices, PricingMatrices } from "@/lib/pricing/types";
 import type { DiscountConfig } from "@/lib/pricing/calculator";
+import type { DaySchedule } from "@/lib/scheduling/availability";
 
 export type PaymentInfo = {
   holderName: string;
@@ -69,6 +70,7 @@ type Ctx = State & {
   hours: HoursMatrices;
   payment: PaymentInfo;
   discount: DiscountConfig;
+  scheduleSnapshot: DaySchedule[];
   source: "sheets" | "fallback";
 };
 
@@ -80,6 +82,7 @@ export function BookingProvider({
   hours,
   payment,
   discount,
+  scheduleSnapshot,
   source
 }: {
   children: React.ReactNode;
@@ -87,12 +90,13 @@ export function BookingProvider({
   hours: HoursMatrices;
   payment: PaymentInfo;
   discount: DiscountConfig;
+  scheduleSnapshot: DaySchedule[];
   source: "sheets" | "fallback";
 }) {
   const [state, dispatch] = React.useReducer(reducer, initialState);
   return (
     <BookingContext.Provider
-      value={{ ...state, dispatch, pricing, hours, payment, discount, source }}
+      value={{ ...state, dispatch, pricing, hours, payment, discount, scheduleSnapshot, source }}
     >
       {children}
     </BookingContext.Provider>

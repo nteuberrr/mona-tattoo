@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { callSheets, isSheetsConfigured } from "@/lib/sheets/client";
+import { getAllBookings } from "@/lib/bookings";
+import { fetchBlocks } from "@/lib/blocks/sheets";
+import { getConfig } from "@/lib/config/sheets";
+import { buildScheduleSnapshot, isSlotAvailable } from "@/lib/scheduling/availability";
 
 /**
- * Recibe el payload del Paso 5 del flujo ("Ya transferí") y lo escribe en la
- * Sheet vía Apps Script. Si SHEETS_WEBHOOK_URL no está configurado, solo
- * loggea y responde un ID fake (útil en dev sin setup).
+ * Recibe el payload del Paso 5 ("Ya transferí") y lo escribe en la Sheet.
+ * Antes de escribir, valida que el slot principal y los bloques adicionales
+ * sigan disponibles (race condition: alguien pudo haber reservado mientras
+ * el cliente decidía).
  */
 export async function POST(req: Request) {
   const payload = await req.json().catch(() => null);
@@ -12,8 +18,53 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Payload inválido" }, { status: 400 });
   }
 
-  // Payload esperado desde Step5Transfer.tsx:
-  // { personal, tattoos, schedule, totalPrice, depositAmount, transferReference }
+  const additionalBlocks = (payload.schedule?.additionalBlocks ?? []) as Array<{
+    date: string;
+    startTime: string;
+  }>;
+  const totalHours = payload.totalHours ?? sumTattooHours(payload.tattoos);
+  const hoursPerBlock = additionalBlocks.length > 0
+    ? Math.min(3, totalHours / (1 + additionalBlocks.length))
+    : totalHours;
+
+  // CONFLICT CHECK
+  if (isSheetsConfigured()) {
+    const [{ bookings }, blocks, config] = await Promise.all([
+      getAllBookings(),
+      fetchBlocks(),
+      getConfig()
+    ]);
+    const snapshot = buildScheduleSnapshot({
+      bookings,
+      blocks,
+      config,
+      fromDate: new Date(),
+      daysAhead: 90
+    });
+
+    const allBlocks = [
+      { date: payload.schedule?.date, startTime: payload.schedule?.startTime },
+      ...additionalBlocks
+    ];
+    for (const b of allBlocks) {
+      if (!b.date || !b.startTime) continue;
+      const ok = isSlotAvailable(snapshot, b.date, b.startTime, hoursPerBlock);
+      if (!ok) {
+        return NextResponse.json(
+          {
+            error: `El horario ${b.startTime} del ${b.date} ya no está disponible. Vuelve atrás y elige otro.`
+          },
+          { status: 409 }
+        );
+      }
+    }
+  }
+
+  // Persistir additionalBlocks dentro de notas_admin (formato JSON marcado)
+  const notes = additionalBlocks.length > 0
+    ? `[BLOCKS]: ${JSON.stringify(additionalBlocks.map((b) => ({ ...b, hours: hoursPerBlock })))}`
+    : "";
+
   const sheetsPayload = {
     client: {
       name: payload.personal?.name,
@@ -25,7 +76,7 @@ export async function POST(req: Request) {
     schedule: {
       date: payload.schedule?.date,
       startTime: payload.schedule?.startTime,
-      endTime: payload.schedule?.endTime ?? computeEndTime(payload.schedule?.startTime, payload.tattoos)
+      endTime: payload.schedule?.endTime ?? computeEndTime(payload.schedule?.startTime, hoursPerBlock)
     },
     tattoos: (payload.tattoos ?? []).map((t: any) => ({
       description: t.description,
@@ -38,11 +89,12 @@ export async function POST(req: Request) {
       price: t.price ?? 0,
       referenceImages: t.referenceImages ?? []
     })),
-    totalHours: payload.totalHours ?? sumTattooHours(payload.tattoos),
+    totalHours,
     totalPrice: payload.totalPrice ?? 0,
     depositAmount: payload.depositAmount ?? 0,
     transferReference: payload.transferReference ?? null,
-    transferReceiptUrl: payload.transferReceiptUrl ?? null
+    transferReceiptUrl: payload.transferReceiptUrl ?? null,
+    notes
   };
 
   if (!isSheetsConfigured()) {
@@ -66,18 +118,21 @@ export async function POST(req: Request) {
     );
   }
 
+  // Invalidar caché de la página pública para que el siguiente cliente
+  // vea los slots actualizados al instante
+  revalidatePath("/reservar");
+
   return NextResponse.json(
     { id: res.data.id, status: res.data.status, source: "sheets" },
     { status: 201 }
   );
 }
 
-function computeEndTime(start: string | undefined, tattoos: any[]): string | undefined {
+function computeEndTime(start: string | undefined, hours: number): string | undefined {
   if (!start) return undefined;
-  const hours = sumTattooHours(tattoos);
   if (!hours) return start;
   const [h, m] = start.split(":").map(Number);
-  const total = h * 60 + (m ?? 0) + hours * 60;
+  const total = h * 60 + (m ?? 0) + Math.ceil(hours * 60);
   const eh = Math.floor(total / 60);
   const em = Math.round(total % 60);
   return `${String(eh).padStart(2, "0")}:${String(em).padStart(2, "0")}`;
@@ -85,14 +140,5 @@ function computeEndTime(start: string | undefined, tattoos: any[]): string | und
 
 function sumTattooHours(tattoos: any[]): number {
   if (!Array.isArray(tattoos)) return 0;
-  return tattoos.reduce((acc, t) => {
-    const area = (t.widthCm ?? 0) * (t.heightCm ?? 0);
-    if (area <= 9) return acc + 1;
-    if (area <= 25) return acc + 1.5;
-    if (area <= 64) return acc + 2;
-    if (area <= 100) return acc + 2.5;
-    if (area <= 180) return acc + 3;
-    if (area <= 300) return acc + 4;
-    return acc + 5;
-  }, 0);
+  return tattoos.reduce((acc, t) => acc + (t.hours || 0), 0);
 }

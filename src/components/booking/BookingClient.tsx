@@ -10,6 +10,7 @@ import { Step4Quote } from "./Step4Quote";
 import { Step5Transfer } from "./Step5Transfer";
 import type { HoursMatrices, PricingMatrices } from "@/lib/pricing/types";
 import type { DiscountConfig } from "@/lib/pricing/calculator";
+import type { DaySchedule } from "@/lib/scheduling/availability";
 
 function ActiveStep() {
   const { step } = useBooking();
@@ -37,12 +38,14 @@ export function BookingClient({
   hours,
   payment,
   discount,
+  schedule,
   source
 }: {
   pricing: PricingMatrices;
   hours: HoursMatrices;
   payment: PaymentInfo;
   discount: DiscountConfig;
+  schedule: DaySchedule[];
   source: "sheets" | "fallback";
 }) {
   return (
@@ -51,6 +54,7 @@ export function BookingClient({
       hours={hours}
       payment={payment}
       discount={discount}
+      scheduleSnapshot={schedule}
       source={source}
     >
       <Stepper />

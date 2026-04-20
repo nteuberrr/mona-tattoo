@@ -3,8 +3,8 @@
 import * as React from "react";
 import { useBooking } from "./BookingContext";
 import { Button } from "@/components/ui/button";
-import { getAvailability, type DaySlot } from "@/lib/scheduling/mock";
 import { totals } from "@/lib/pricing/calculator";
+import { getSlotsForDay } from "@/lib/scheduling/availability";
 import { cn, formatHours } from "@/lib/utils";
 import { SpecialScheduleModal } from "./SpecialScheduleModal";
 import { CalendarClock, AlertCircle, X } from "lucide-react";
@@ -14,44 +14,55 @@ const MAX_BLOCK_HOURS = 3;
 type Slot = { date: string; startTime: string };
 
 export function Step3Schedule() {
-  const { tattoos, schedule, dispatch, pricing, hours } = useBooking();
-  const { hours: totalHoursNeeded } = totals(tattoos, { pricing, hours });
+  const ctx = useBooking();
+  const { tattoos, dispatch, pricing, hours } = ctx;
+  // schedule en el contexto es el snapshot de disponibilidad desde el Sheet
+  // Lo que el cliente eligió previamente está en ctx.schedule (state.schedule),
+  // pero acá `ctx.schedule` colisiona con nuestro snapshot. Hicimos el state
+  // schedule no-conflictivo accediendo directo al state via reducer.
+  const totalHoursNeeded = totals(tattoos, { pricing, hours }).hours;
 
-  // Si la sesión supera 3h, se divide en bloques
   const needsMultipleBlocks = totalHoursNeeded > MAX_BLOCK_HOURS;
-  const hoursPerBlock = needsMultipleBlocks ? MAX_BLOCK_HOURS : totalHoursNeeded;
+  const hoursPerBlock = needsMultipleBlocks ? MAX_BLOCK_HOURS : Math.max(totalHoursNeeded, 1);
   const blocksNeeded = needsMultipleBlocks ? Math.ceil(totalHoursNeeded / MAX_BLOCK_HOURS) : 1;
 
-  const [days, setDays] = React.useState<DaySlot[]>([]);
-  const [selectedSlots, setSelectedSlots] = React.useState<Slot[]>(
-    schedule ? [{ date: schedule.date, startTime: schedule.startTime }] : []
-  );
-  const [activeDate, setActiveDate] = React.useState<string | null>(
-    schedule?.date ?? null
-  );
-  const [modalOpen, setModalOpen] = React.useState(false);
+  // Solo días con horario abierto y dentro del calendario
+  const days = (ctx.scheduleSnapshot ?? []).filter((d) => d.open !== null);
 
-  React.useEffect(() => {
-    setDays(getAvailability(new Date(), 6, hoursPerBlock));
-  }, [hoursPerBlock]);
+  const [selectedSlots, setSelectedSlots] = React.useState<Slot[]>([]);
+  const [activeDate, setActiveDate] = React.useState<string | null>(null);
+  const [modalOpen, setModalOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (!activeDate && days[0]) setActiveDate(days[0].date);
   }, [days, activeDate]);
 
   const activeDay = days.find((d) => d.date === activeDate) ?? days[0];
+  const slots = activeDay ? getSlotsForDay(activeDay, hoursPerBlock) : [];
 
   const isSelected = (date: string, time: string) =>
     selectedSlots.some((s) => s.date === date && s.startTime === time);
 
+  // Para evitar overlap entre los bloques que el mismo cliente ya eligió
+  const slotConflictsWithSelection = (date: string, time: string) => {
+    if (isSelected(date, time)) return false;
+    const newStartMin = parseInt(time.split(":")[0]) * 60 + parseInt(time.split(":")[1]);
+    const newEndMin = newStartMin + Math.ceil(hoursPerBlock * 60);
+    return selectedSlots.some((s) => {
+      if (s.date !== date) return false;
+      const sStartMin = parseInt(s.startTime.split(":")[0]) * 60 + parseInt(s.startTime.split(":")[1]);
+      const sEndMin = sStartMin + Math.ceil(hoursPerBlock * 60);
+      return newStartMin < sEndMin && newEndMin > sStartMin;
+    });
+  };
+
   const toggleSlot = (date: string, time: string) => {
-    const already = isSelected(date, time);
-    if (already) {
+    if (isSelected(date, time)) {
       setSelectedSlots((prev) => prev.filter((s) => !(s.date === date && s.startTime === time)));
       return;
     }
+    if (slotConflictsWithSelection(date, time)) return;
     if (!needsMultipleBlocks) {
-      // Un solo slot: reemplaza el anterior
       setSelectedSlots([{ date, startTime: time }]);
     } else {
       if (selectedSlots.length >= blocksNeeded) return;
@@ -61,7 +72,6 @@ export function Step3Schedule() {
 
   const submit = () => {
     if (selectedSlots.length === 0) return;
-    // Ordenar por fecha + hora y tomar el primer slot como principal
     const sorted = [...selectedSlots].sort(
       (a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime)
     );
@@ -84,7 +94,7 @@ export function Step3Schedule() {
         <p className="mt-3 text-ink-soft">
           Tu sesión necesita{" "}
           <span className="text-ink font-medium">{formatHours(totalHoursNeeded)}</span>{" "}
-          aproximadamente. Muestro slots L–V 10:00 a 16:00.
+          aproximadamente. Solo se muestran slots realmente disponibles según la agenda.
         </p>
       </div>
 
@@ -134,59 +144,77 @@ export function Step3Schedule() {
         </div>
       )}
 
-      <div className="border border-line bg-surface">
-        <div className="flex overflow-x-auto border-b border-line">
-          {days.map((d) => (
-            <button
-              key={d.date}
-              onClick={() => setActiveDate(d.date)}
-              className={cn(
-                "flex-1 min-w-[110px] px-4 py-4 text-left transition-colors",
-                "border-r border-line last:border-r-0",
-                activeDate === d.date ? "bg-ink text-bg" : "hover:bg-line/30"
-              )}
-            >
-              <div className="text-[0.65rem] uppercase tracking-editorial opacity-70 capitalize">
-                {d.label.split(" ")[0]}
-              </div>
-              <div className="font-display text-2xl mt-1">
-                {d.label.split(" ")[1]}
-              </div>
-              <div className="text-[0.65rem] uppercase tracking-editorial opacity-70 capitalize">
-                {d.label.split(" ")[2]}
-              </div>
-            </button>
-          ))}
+      {days.length === 0 ? (
+        <div className="border border-line bg-surface p-10 text-center text-muted text-sm">
+          No hay horarios configurados. La estudio debe definir días de atención
+          desde el panel admin.
         </div>
-
-        <div className="p-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          {activeDay?.slots.length === 0 && (
-            <p className="col-span-full text-sm text-muted text-center py-8">
-              Sin slots que encajen con {formatHours(hoursPerBlock)} este día.
-            </p>
-          )}
-          {activeDay?.slots.map((s) => {
-            const selected = isSelected(activeDay.date, s.startTime);
-            const full = !selected && selectedSlots.length >= blocksNeeded;
-            return (
+      ) : (
+        <div className="border border-line bg-surface">
+          <div className="flex overflow-x-auto border-b border-line">
+            {days.slice(0, 21).map((d) => (
               <button
-                key={s.startTime}
-                disabled={!s.available || full}
-                onClick={() => toggleSlot(activeDay.date, s.startTime)}
+                key={d.date}
+                onClick={() => setActiveDate(d.date)}
                 className={cn(
-                  "h-11 border text-sm font-body transition-colors",
-                  !s.available && "border-line text-muted line-through cursor-not-allowed",
-                  s.available && selected && "border-ink bg-ink text-bg",
-                  s.available && !selected && !full && "border-line hover:border-ink",
-                  s.available && !selected && full && "border-line text-muted cursor-not-allowed opacity-50"
+                  "flex-1 min-w-[110px] px-4 py-4 text-left transition-colors",
+                  "border-r border-line last:border-r-0",
+                  activeDate === d.date ? "bg-ink text-bg" : "hover:bg-line/30"
                 )}
               >
-                {s.startTime}
+                <div className="text-[0.65rem] uppercase tracking-editorial opacity-70 capitalize">
+                  {d.label.split(" ")[0]}
+                </div>
+                <div className="font-display text-2xl mt-1">
+                  {d.label.split(" ")[1]}
+                </div>
+                <div className="text-[0.65rem] uppercase tracking-editorial opacity-70 capitalize">
+                  {d.label.split(" ")[2]}
+                </div>
               </button>
-            );
-          })}
+            ))}
+          </div>
+
+          <div className="p-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {slots.length === 0 && (
+              <p className="col-span-full text-sm text-muted text-center py-8">
+                Sin slots de {formatHours(hoursPerBlock)} disponibles este día.
+              </p>
+            )}
+            {slots.map((s) => {
+              const selected = isSelected(activeDay!.date, s.startTime);
+              const conflictsLocal = slotConflictsWithSelection(activeDay!.date, s.startTime);
+              const full = !selected && selectedSlots.length >= blocksNeeded;
+              const disabled = !s.available || full || conflictsLocal;
+              return (
+                <button
+                  key={s.startTime}
+                  disabled={disabled}
+                  onClick={() => toggleSlot(activeDay!.date, s.startTime)}
+                  title={
+                    !s.available
+                      ? "Ya hay una reserva en este horario"
+                      : conflictsLocal
+                      ? "Choca con otro bloque que ya seleccionaste"
+                      : full
+                      ? "Ya seleccionaste todos los bloques que necesitas"
+                      : ""
+                  }
+                  className={cn(
+                    "h-11 border text-sm font-body transition-colors",
+                    !s.available && "border-line text-muted line-through cursor-not-allowed bg-line/20",
+                    s.available && selected && "border-ink bg-ink text-bg",
+                    s.available && !selected && !disabled && "border-line hover:border-ink",
+                    s.available && !selected && full && "border-line text-muted cursor-not-allowed opacity-50"
+                  )}
+                >
+                  {s.startTime}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       <button
         onClick={() => setModalOpen(true)}
