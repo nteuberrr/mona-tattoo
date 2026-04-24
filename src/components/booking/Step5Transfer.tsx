@@ -160,19 +160,19 @@ function CopyRow({
   copied: boolean;
 }) {
   return (
-    <div className="py-3 flex items-center justify-between gap-4">
-      <div>
+    <div className="py-3 flex items-center justify-between gap-3">
+      <div className="min-w-0 flex-1">
         <div className="text-xs uppercase tracking-editorial text-muted">{label}</div>
-        <div className="font-body">{value}</div>
+        <div className="font-body break-all select-all">{value}</div>
       </div>
       <button
         type="button"
         onClick={() => onCopy(value)}
-        className="text-xs uppercase tracking-editorial inline-flex items-center gap-2 text-ink-soft hover:text-ink"
+        className="shrink-0 text-xs uppercase tracking-editorial inline-flex items-center gap-1.5 text-ink-soft hover:text-ink"
         aria-label={`Copiar ${label}`}
       >
         {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-        {copied ? "Copiado" : "Copiar"}
+        <span className="hidden sm:inline">{copied ? "Copiado" : "Copiar"}</span>
       </button>
     </div>
   );

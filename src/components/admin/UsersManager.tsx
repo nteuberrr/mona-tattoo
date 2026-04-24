@@ -126,9 +126,9 @@ function UserRow({
   onDelete: () => void;
 }) {
   return (
-    <div className="p-4 sm:p-5 flex flex-wrap items-start gap-4">
-      <div className="flex-1 min-w-[200px]">
-        <div className="flex items-center gap-2">
+    <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:flex-wrap items-start gap-3 sm:gap-4">
+      <div className="flex-1 min-w-0 w-full sm:w-auto">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="font-display text-lg">{user.nombre}</span>
           {!user.activo && (
             <Badge variant="muted" className="text-[0.6rem]">
@@ -139,12 +139,12 @@ function UserRow({
             {user.rol}
           </Badge>
         </div>
-        <div className="text-xs text-ink-soft mt-1">{user.email}</div>
+        <div className="text-xs text-ink-soft mt-1 break-all">{user.email}</div>
       </div>
 
-      <div className="text-xs">
+      <div className="text-xs min-w-0">
         <div className="text-muted uppercase tracking-editorial">Contraseña</div>
-        <div className="font-mono mt-1">
+        <div className="font-mono mt-1 break-all">
           {showPassword ? user.password : "•".repeat(Math.max(user.password.length, 6))}
         </div>
       </div>
@@ -156,7 +156,7 @@ function UserRow({
         </div>
       )}
 
-      <div className="flex items-center gap-1 ml-auto">
+      <div className="flex items-center gap-1 sm:ml-auto self-end sm:self-auto">
         <button
           onClick={onEdit}
           className="text-xs px-3 h-8 border border-line hover:border-ink transition-colors uppercase tracking-editorial"

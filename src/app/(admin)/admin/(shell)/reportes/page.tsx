@@ -82,30 +82,33 @@ export default async function ReportesPage() {
         <Stat label="Promedio por tatuaje" value={formatCLP(avgPerTattoo)} />
       </section>
 
-      <section className="border border-line bg-surface p-6">
+      <section className="border border-line bg-surface p-4 sm:p-6">
         <h2 className="eyebrow mb-5">Ingresos últimos 12 meses</h2>
-        <div className="flex items-end gap-2 h-48">
-          {incomeByMonth.map((m, i) => {
-            const pct = (m.value / maxIncome) * 100;
-            return (
-              <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                <div className="w-full flex-1 flex items-end">
-                  <div
-                    className={cn(
-                      "w-full bg-ink transition-all",
-                      m.value === 0 && "bg-line"
-                    )}
-                    style={{ height: `${Math.max(pct, 1)}%` }}
-                    title={`${formatCLP(m.value)} · ${m.count} sesiones`}
-                  />
+        <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+          <div className="flex items-end gap-2 h-48 min-w-[480px]">
+            {incomeByMonth.map((m, i) => {
+              const pct = (m.value / maxIncome) * 100;
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center gap-2 min-w-[28px]">
+                  <div className="w-full flex-1 flex items-end">
+                    <div
+                      className={cn(
+                        "w-full bg-ink transition-all",
+                        m.value === 0 && "bg-line"
+                      )}
+                      style={{ height: `${Math.max(pct, 1)}%` }}
+                      title={`${formatCLP(m.value)} · ${m.count} sesiones`}
+                    />
+                  </div>
+                  <div className="text-[0.6rem] uppercase tracking-editorial text-muted capitalize whitespace-nowrap">
+                    {m.label}
+                  </div>
                 </div>
-                <div className="text-[0.6rem] uppercase tracking-editorial text-muted capitalize">
-                  {m.label}
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
+        <p className="text-[0.65rem] text-muted mt-3 sm:hidden">↔ desliza para ver todo</p>
       </section>
 
       <section className="grid md:grid-cols-3 gap-4">
