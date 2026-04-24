@@ -35,6 +35,17 @@ const WEEKDAY_KEYS = [
   "sabado"
 ] as const;
 
+// Defaults: L-V 10:00-16:00, fin de semana cerrado.
+const DEFAULT_DAY_SCHEDULE: Record<(typeof WEEKDAY_KEYS)[number], string> = {
+  domingo: "off",
+  lunes: "10:00-16:00",
+  martes: "10:00-16:00",
+  miercoles: "10:00-16:00",
+  jueves: "10:00-16:00",
+  viernes: "10:00-16:00",
+  sabado: "off"
+};
+
 const DAY_LABELS_SHORT = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 const MONTH_SHORT = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 
@@ -114,7 +125,11 @@ export function buildScheduleSnapshot({
     const iso = format(d, "yyyy-MM-dd");
     const weekday = d.getDay();
     const label = `${DAY_LABELS_SHORT[weekday]} ${d.getDate()} ${MONTH_SHORT[d.getMonth()]}`;
-    const open = parseDaySchedule(config[`horario_${WEEKDAY_KEYS[weekday]}`]);
+    const dayKey = WEEKDAY_KEYS[weekday];
+    const configured = config[`horario_${dayKey}`];
+    const open = parseDaySchedule(
+      configured && String(configured).trim() ? String(configured) : DEFAULT_DAY_SCHEDULE[dayKey]
+    );
 
     const taken: TimeRange[] = [];
 
