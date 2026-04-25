@@ -14,9 +14,18 @@ export function formatCLP(value: number | null | undefined): string {
   }).format(value);
 }
 
+function parseLocalDate(date: Date | string): Date {
+  if (date instanceof Date) return date;
+  // "YYYY-MM-DD" (fecha sola) → parsear como local, no UTC, para evitar
+  // que en TZ negativas (Chile UTC-4) se corra un día atrás.
+  const m = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return new Date(date);
+}
+
 export function formatDateLong(date: Date | string | null | undefined): string {
   if (!date) return "—";
-  const d = typeof date === "string" ? new Date(date) : date;
+  const d = parseLocalDate(date);
   if (isNaN(d.getTime())) return String(date);
   return new Intl.DateTimeFormat("es-CL", {
     weekday: "long",
@@ -28,7 +37,7 @@ export function formatDateLong(date: Date | string | null | undefined): string {
 
 export function formatDateShort(date: Date | string | null | undefined): string {
   if (!date) return "—";
-  const d = typeof date === "string" ? new Date(date) : date;
+  const d = parseLocalDate(date);
   if (isNaN(d.getTime())) return String(date);
   return new Intl.DateTimeFormat("es-CL", {
     day: "2-digit",

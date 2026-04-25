@@ -80,6 +80,8 @@ function doPost(e) {
         return deleteUser(body.payload || {});
       case "validateUser":
         return validateUser(body.payload || {});
+      case "clearSheetData":
+        return clearSheetData(body.payload || {});
       default:
         return json({ error: "Unknown action: " + body.action }, 400);
     }
@@ -322,6 +324,39 @@ function validateUser(payload) {
     }
   }
   return json({ error: "Credenciales inválidas", noMatch: true }, 401);
+}
+
+// ==============================================================
+//  Mantención
+// ==============================================================
+
+/**
+ * Borra todas las filas de datos de las hojas indicadas en payload.sheets.
+ * Conserva la primera fila (headers).
+ * payload: { sheets: ["Reservas", "Tatuajes", ...] }
+ */
+function clearSheetData(payload) {
+  const sheets = (payload.sheets || []).filter(function (n) { return typeof n === "string" && n; });
+  if (sheets.length === 0) {
+    return json({ error: "Lista de hojas vacía" }, 400);
+  }
+  const summary = {};
+  for (const name of sheets) {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const s = ss.getSheetByName(name);
+    if (!s) {
+      summary[name] = "no encontrada";
+      continue;
+    }
+    const last = s.getLastRow();
+    if (last <= 1) {
+      summary[name] = 0;
+      continue;
+    }
+    s.getRange(2, 1, last - 1, s.getLastColumn()).clearContent();
+    summary[name] = last - 1;
+  }
+  return json({ ok: true, cleared: summary });
 }
 
 // ==============================================================

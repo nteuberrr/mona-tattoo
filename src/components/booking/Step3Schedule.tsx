@@ -15,11 +15,7 @@ type Slot = { date: string; startTime: string };
 
 export function Step3Schedule() {
   const ctx = useBooking();
-  const { tattoos, dispatch, pricing, hours } = ctx;
-  // schedule en el contexto es el snapshot de disponibilidad desde el Sheet
-  // Lo que el cliente eligió previamente está en ctx.schedule (state.schedule),
-  // pero acá `ctx.schedule` colisiona con nuestro snapshot. Hicimos el state
-  // schedule no-conflictivo accediendo directo al state via reducer.
+  const { tattoos, schedule: savedSchedule, dispatch, pricing, hours } = ctx;
   const totalHoursNeeded = totals(tattoos, { pricing, hours }).hours;
 
   const needsMultipleBlocks = totalHoursNeeded > MAX_BLOCK_HOURS;
@@ -29,8 +25,15 @@ export function Step3Schedule() {
   // Solo días con horario abierto y dentro del calendario
   const days = (ctx.scheduleSnapshot ?? []).filter((d) => d.open !== null);
 
-  const [selectedSlots, setSelectedSlots] = React.useState<Slot[]>([]);
-  const [activeDate, setActiveDate] = React.useState<string | null>(null);
+  const [selectedSlots, setSelectedSlots] = React.useState<Slot[]>(() => {
+    if (!savedSchedule?.date || !savedSchedule.startTime) return [];
+    const first: Slot = { date: savedSchedule.date, startTime: savedSchedule.startTime };
+    const extras = savedSchedule.additionalBlocks ?? [];
+    return [first, ...extras];
+  });
+  const [activeDate, setActiveDate] = React.useState<string | null>(
+    savedSchedule?.date ?? null
+  );
   const [modalOpen, setModalOpen] = React.useState(false);
 
   React.useEffect(() => {
